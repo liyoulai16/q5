@@ -56,7 +56,7 @@ class MainWindow(QMainWindow):
         layout.setSpacing(10)
         
         title_label = QLabel("工具套件")
-        title_label.setFont(QFont("Microsoft YaHei", 16, QFont.Bold))
+        title_label.setFont(QFont("Microsoft YaHei", 16, QFont.Weight.Bold))
         title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(title_label)
         
