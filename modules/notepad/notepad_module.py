@@ -76,8 +76,8 @@ class NotepadModule(BaseModule):
         """
         widget = QWidget()
         main_layout = QVBoxLayout(widget)
-        main_layout.setContentsMargins(10, 10, 10, 10)
-        main_layout.setSpacing(10)
+        main_layout.setContentsMargins(5, 5, 5, 5)
+        main_layout.setSpacing(5)
         
         toolbar = self._create_toolbar()
         main_layout.addWidget(toolbar)
@@ -90,7 +90,7 @@ class NotepadModule(BaseModule):
         editor_panel = self._create_editor_panel()
         content_splitter.addWidget(editor_panel)
         
-        content_splitter.setSizes([250, 750])
+        content_splitter.setSizes([200, 800])
         
         main_layout.addWidget(content_splitter)
         
@@ -105,27 +105,107 @@ class NotepadModule(BaseModule):
         toolbar = QWidget()
         layout = QHBoxLayout(toolbar)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(10)
+        layout.setSpacing(8)
         
         new_btn = QPushButton("新建笔记")
+        new_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #4CAF50;
+                color: white;
+                border: none;
+                padding: 8px 16px;
+                border-radius: 4px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #45a049;
+            }
+            QPushButton:pressed {
+                background-color: #3d8b40;
+            }
+        """)
         new_btn.clicked.connect(self._on_new_note)
         layout.addWidget(new_btn)
         
         save_btn = QPushButton("保存笔记")
+        save_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #2196F3;
+                color: white;
+                border: none;
+                padding: 8px 16px;
+                border-radius: 4px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #1976D2;
+            }
+            QPushButton:pressed {
+                background-color: #1565C0;
+            }
+        """)
         save_btn.clicked.connect(self._on_save_note)
         layout.addWidget(save_btn)
         
         delete_btn = QPushButton("删除笔记")
+        delete_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #f44336;
+                color: white;
+                border: none;
+                padding: 8px 16px;
+                border-radius: 4px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #d32f2f;
+            }
+            QPushButton:pressed {
+                background-color: #b71c1c;
+            }
+        """)
         delete_btn.clicked.connect(self._on_delete_note)
         layout.addWidget(delete_btn)
         
         layout.addStretch()
         
         export_btn = QPushButton("导出文件")
+        export_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #FF9800;
+                color: white;
+                border: none;
+                padding: 8px 16px;
+                border-radius: 4px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #F57C00;
+            }
+            QPushButton:pressed {
+                background-color: #EF6C00;
+            }
+        """)
         export_btn.clicked.connect(self._on_export_file)
         layout.addWidget(export_btn)
         
         import_btn = QPushButton("导入文件")
+        import_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #9C27B0;
+                color: white;
+                border: none;
+                padding: 8px 16px;
+                border-radius: 4px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #7B1FA2;
+            }
+            QPushButton:pressed {
+                background-color: #6A1B9A;
+            }
+        """)
         import_btn.clicked.connect(self._on_import_file)
         layout.addWidget(import_btn)
         
@@ -137,14 +217,33 @@ class NotepadModule(BaseModule):
         """
         panel = QWidget()
         layout = QVBoxLayout(panel)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(5)
+        layout.setContentsMargins(2, 2, 2, 2)
+        layout.setSpacing(3)
         
         title_label = QLabel("笔记列表")
-        title_label.setFont(QFont("Microsoft YaHei", 12, QFont.Weight.Bold))
+        title_label.setFont(QFont("Microsoft YaHei", 11, QFont.Weight.Bold))
+        title_label.setStyleSheet("color: #333; padding: 2px;")
         layout.addWidget(title_label)
         
         self.notes_list = QListWidget()
+        self.notes_list.setStyleSheet("""
+            QListWidget {
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                padding: 2px;
+            }
+            QListWidget::item {
+                padding: 5px;
+                border-bottom: 1px solid #f0f0f0;
+            }
+            QListWidget::item:selected {
+                background-color: #e3f2fd;
+                color: #1565C0;
+            }
+            QListWidget::item:hover {
+                background-color: #f5f5f5;
+            }
+        """)
         self.notes_list.currentRowChanged.connect(self._on_note_selected)
         layout.addWidget(self.notes_list)
         
@@ -156,16 +255,25 @@ class NotepadModule(BaseModule):
         """
         panel = QWidget()
         layout = QVBoxLayout(panel)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(5)
+        layout.setContentsMargins(2, 2, 2, 2)
+        layout.setSpacing(3)
         
         self.note_title_label = QLabel("未选择笔记")
-        self.note_title_label.setFont(QFont("Microsoft YaHei", 12, QFont.Weight.Bold))
+        self.note_title_label.setFont(QFont("Microsoft YaHei", 11, QFont.Weight.Bold))
+        self.note_title_label.setStyleSheet("color: #333; padding: 2px;")
         layout.addWidget(self.note_title_label)
         
         self.text_editor = QTextEdit()
         self.text_editor.setFont(QFont("Microsoft YaHei", 11))
         self.text_editor.setPlaceholderText("在此输入文本内容...")
+        self.text_editor.setStyleSheet("""
+            QTextEdit {
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                padding: 5px;
+                background-color: #fafafa;
+            }
+        """)
         layout.addWidget(self.text_editor)
         
         return panel

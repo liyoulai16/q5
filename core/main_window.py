@@ -43,7 +43,7 @@ class MainWindow(QMainWindow):
         self.content_stack = QStackedWidget()
         splitter.addWidget(self.content_stack)
         
-        splitter.setSizes([250, 950])
+        splitter.setSizes([200, 1000])
         
         main_layout.addWidget(splitter)
         
@@ -51,18 +51,53 @@ class MainWindow(QMainWindow):
     
     def _create_left_panel(self):
         panel = QWidget()
+        panel.setStyleSheet("""
+            QWidget {
+                background-color: #f5f5f5;
+                border-right: 1px solid #ddd;
+            }
+        """)
+        
         layout = QVBoxLayout(panel)
-        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setContentsMargins(5, 10, 5, 10)
         layout.setSpacing(10)
         
         title_label = QLabel("工具套件")
-        title_label.setFont(QFont("Microsoft YaHei", 16, QFont.Weight.Bold))
+        title_label.setFont(QFont("Microsoft YaHei", 14, QFont.Weight.Bold))
         title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        title_label.setStyleSheet("""
+            QLabel {
+                color: #333;
+                padding: 5px;
+                background-color: transparent;
+            }
+        """)
         layout.addWidget(title_label)
         
         self.module_list = QListWidget()
         self.module_list.setIconSize(QSize(32, 32))
         self.module_list.setFont(QFont("Microsoft YaHei", 11))
+        self.module_list.setStyleSheet("""
+            QListWidget {
+                border: none;
+                border-radius: 4px;
+                background-color: white;
+                padding: 2px;
+            }
+            QListWidget::item {
+                padding: 10px;
+                border-bottom: 1px solid #f0f0f0;
+                border-radius: 4px;
+            }
+            QListWidget::item:selected {
+                background-color: #e3f2fd;
+                color: #1565C0;
+                font-weight: bold;
+            }
+            QListWidget::item:hover {
+                background-color: #f5f5f5;
+            }
+        """)
         self.module_list.currentRowChanged.connect(self._on_module_selected)
         layout.addWidget(self.module_list)
         
