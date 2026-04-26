@@ -108,13 +108,14 @@ class TodoModule(BaseModule):
         """
         widget = QWidget()
         main_layout = QVBoxLayout(widget)
-        main_layout.setContentsMargins(5, 5, 5, 5)
-        main_layout.setSpacing(5)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(2)
         
         toolbar = self._create_toolbar()
         main_layout.addWidget(toolbar)
         
         content_splitter = QSplitter(Qt.Orientation.Horizontal)
+        content_splitter.setChildrenCollapsible(False)
         
         todo_list_panel = self._create_todo_list_panel()
         content_splitter.addWidget(todo_list_panel)
@@ -124,7 +125,7 @@ class TodoModule(BaseModule):
         
         content_splitter.setSizes([350, 650])
         
-        main_layout.addWidget(content_splitter)
+        main_layout.addWidget(content_splitter, 1)
         
         self._load_todo_list()
         
@@ -219,11 +220,11 @@ class TodoModule(BaseModule):
         """
         panel = QWidget()
         layout = QVBoxLayout(panel)
-        layout.setContentsMargins(2, 2, 2, 2)
-        layout.setSpacing(3)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(1)
         
         title_label = QLabel("任务列表")
-        title_label.setFont(QFont("Microsoft YaHei", 11, QFont.Weight.Bold))
+        title_label.setFont(QFont("Microsoft YaHei", 10, QFont.Weight.Bold))
         title_label.setStyleSheet("color: #333; padding: 2px;")
         layout.addWidget(title_label)
         
@@ -231,11 +232,11 @@ class TodoModule(BaseModule):
         self.todo_list.setStyleSheet("""
             QListWidget {
                 border: 1px solid #ddd;
-                border-radius: 4px;
-                padding: 2px;
+                border-radius: 2px;
+                padding: 0px;
             }
             QListWidget::item {
-                padding: 6px;
+                padding: 4px;
                 border-bottom: 1px solid #f0f0f0;
             }
             QListWidget::item:selected {
@@ -247,7 +248,7 @@ class TodoModule(BaseModule):
             }
         """)
         self.todo_list.currentRowChanged.connect(self._on_todo_selected)
-        layout.addWidget(self.todo_list)
+        layout.addWidget(self.todo_list, 1)
         
         return panel
     
@@ -257,11 +258,11 @@ class TodoModule(BaseModule):
         """
         panel = QWidget()
         layout = QVBoxLayout(panel)
-        layout.setContentsMargins(2, 2, 2, 2)
-        layout.setSpacing(5)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(2)
         
         title_label = QLabel("任务详情")
-        title_label.setFont(QFont("Microsoft YaHei", 11, QFont.Weight.Bold))
+        title_label.setFont(QFont("Microsoft YaHei", 10, QFont.Weight.Bold))
         title_label.setStyleSheet("color: #333; padding: 2px;")
         layout.addWidget(title_label)
         
@@ -270,27 +271,28 @@ class TodoModule(BaseModule):
             QGroupBox {
                 font-weight: bold;
                 border: 1px solid #ddd;
-                border-radius: 4px;
-                margin-top: 10px;
-                padding-top: 10px;
+                border-radius: 2px;
+                margin-top: 8px;
+                padding-top: 8px;
             }
             QGroupBox::title {
                 subcontrol-origin: margin;
-                left: 10px;
-                padding: 0 5px;
+                left: 8px;
+                padding: 0 3px;
             }
         """)
         form_layout = QFormLayout(form_group)
-        form_layout.setSpacing(8)
+        form_layout.setSpacing(4)
+        form_layout.setContentsMargins(8, 8, 8, 8)
         
         self.title_edit = QTextEdit()
-        self.title_edit.setMaximumHeight(60)
+        self.title_edit.setMaximumHeight(50)
         self.title_edit.setPlaceholderText("任务标题")
         self.title_edit.setStyleSheet("""
             QTextEdit {
                 border: 1px solid #ddd;
-                border-radius: 4px;
-                padding: 5px;
+                border-radius: 2px;
+                padding: 3px;
                 background-color: #fafafa;
             }
         """)
@@ -301,9 +303,9 @@ class TodoModule(BaseModule):
             self.priority_combo.addItem(priority_name, priority_id)
         self.priority_combo.setStyleSheet("""
             QComboBox {
-                padding: 6px 12px;
+                padding: 4px 8px;
                 border: 1px solid #ddd;
-                border-radius: 4px;
+                border-radius: 2px;
                 background-color: white;
             }
             QComboBox:hover {
@@ -317,9 +319,9 @@ class TodoModule(BaseModule):
             self.status_combo.addItem(status_name, status_id)
         self.status_combo.setStyleSheet("""
             QComboBox {
-                padding: 6px 12px;
+                padding: 4px 8px;
                 border: 1px solid #ddd;
-                border-radius: 4px;
+                border-radius: 2px;
                 background-color: white;
             }
             QComboBox:hover {
@@ -334,9 +336,9 @@ class TodoModule(BaseModule):
         self.due_date_edit.setSpecialValueText("无截止日期")
         self.due_date_edit.setStyleSheet("""
             QDateEdit {
-                padding: 6px 12px;
+                padding: 4px 8px;
                 border: 1px solid #ddd;
-                border-radius: 4px;
+                border-radius: 2px;
                 background-color: white;
             }
             QDateEdit:hover {
@@ -352,35 +354,37 @@ class TodoModule(BaseModule):
             QGroupBox {
                 font-weight: bold;
                 border: 1px solid #ddd;
-                border-radius: 4px;
-                margin-top: 10px;
-                padding-top: 10px;
+                border-radius: 2px;
+                margin-top: 8px;
+                padding-top: 8px;
             }
             QGroupBox::title {
                 subcontrol-origin: margin;
-                left: 10px;
-                padding: 0 5px;
+                left: 8px;
+                padding: 0 3px;
             }
         """)
         desc_layout = QVBoxLayout(desc_group)
-        desc_layout.setContentsMargins(5, 5, 5, 5)
+        desc_layout.setContentsMargins(8, 8, 8, 8)
+        desc_layout.setSpacing(0)
         
         self.description_edit = QTextEdit()
         self.description_edit.setPlaceholderText("输入任务详细描述...")
         self.description_edit.setStyleSheet("""
             QTextEdit {
                 border: 1px solid #ddd;
-                border-radius: 4px;
-                padding: 5px;
+                border-radius: 2px;
+                padding: 3px;
                 background-color: #fafafa;
             }
         """)
         desc_layout.addWidget(self.description_edit)
         
-        layout.addWidget(desc_group)
+        layout.addWidget(desc_group, 1)
         
         btn_layout = QHBoxLayout()
-        btn_layout.setSpacing(8)
+        btn_layout.setSpacing(5)
+        btn_layout.setContentsMargins(0, 2, 0, 2)
         
         save_btn = QPushButton("保存修改")
         save_btn.setStyleSheet("""
@@ -388,8 +392,8 @@ class TodoModule(BaseModule):
                 background-color: #2196F3;
                 color: white;
                 border: none;
-                padding: 8px 16px;
-                border-radius: 4px;
+                padding: 6px 12px;
+                border-radius: 2px;
                 font-weight: bold;
             }
             QPushButton:hover {
@@ -408,8 +412,8 @@ class TodoModule(BaseModule):
                 background-color: #FFC107;
                 color: #333;
                 border: none;
-                padding: 8px 16px;
-                border-radius: 4px;
+                padding: 6px 12px;
+                border-radius: 2px;
                 font-weight: bold;
             }
             QPushButton:hover {
