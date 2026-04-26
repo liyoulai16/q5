@@ -108,8 +108,8 @@ class TodoModule(BaseModule):
         """
         widget = QWidget()
         main_layout = QVBoxLayout(widget)
-        main_layout.setContentsMargins(10, 10, 10, 10)
-        main_layout.setSpacing(10)
+        main_layout.setContentsMargins(5, 5, 5, 5)
+        main_layout.setSpacing(5)
         
         toolbar = self._create_toolbar()
         main_layout.addWidget(toolbar)
@@ -122,7 +122,7 @@ class TodoModule(BaseModule):
         detail_panel = self._create_detail_panel()
         content_splitter.addWidget(detail_panel)
         
-        content_splitter.setSizes([400, 600])
+        content_splitter.setSizes([350, 650])
         
         main_layout.addWidget(content_splitter)
         
@@ -137,23 +137,77 @@ class TodoModule(BaseModule):
         toolbar = QWidget()
         layout = QHBoxLayout(toolbar)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(10)
+        layout.setSpacing(8)
         
         new_btn = QPushButton("新建任务")
+        new_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #4CAF50;
+                color: white;
+                border: none;
+                padding: 8px 16px;
+                border-radius: 4px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #45a049;
+            }
+            QPushButton:pressed {
+                background-color: #3d8b40;
+            }
+        """)
         new_btn.clicked.connect(self._on_new_todo)
         layout.addWidget(new_btn)
         
         delete_btn = QPushButton("删除任务")
+        delete_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #f44336;
+                color: white;
+                border: none;
+                padding: 8px 16px;
+                border-radius: 4px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #d32f2f;
+            }
+            QPushButton:pressed {
+                background-color: #b71c1c;
+            }
+        """)
         delete_btn.clicked.connect(self._on_delete_todo)
         layout.addWidget(delete_btn)
         
         layout.addStretch()
         
         filter_label = QLabel("筛选:")
+        filter_label.setStyleSheet("font-weight: bold; color: #555;")
         layout.addWidget(filter_label)
         
         self.filter_combo = QComboBox()
         self.filter_combo.addItems(["全部", "待处理", "进行中", "已完成"])
+        self.filter_combo.setStyleSheet("""
+            QComboBox {
+                padding: 6px 12px;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                background-color: white;
+                min-width: 100px;
+            }
+            QComboBox:hover {
+                border-color: #2196F3;
+            }
+            QComboBox::drop-down {
+                border: none;
+                padding-right: 8px;
+            }
+            QComboBox QAbstractItemView {
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                padding: 4px;
+            }
+        """)
         self.filter_combo.currentIndexChanged.connect(self._on_filter_changed)
         layout.addWidget(self.filter_combo)
         
@@ -165,14 +219,33 @@ class TodoModule(BaseModule):
         """
         panel = QWidget()
         layout = QVBoxLayout(panel)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(5)
+        layout.setContentsMargins(2, 2, 2, 2)
+        layout.setSpacing(3)
         
         title_label = QLabel("任务列表")
-        title_label.setFont(QFont("Microsoft YaHei", 12, QFont.Weight.Bold))
+        title_label.setFont(QFont("Microsoft YaHei", 11, QFont.Weight.Bold))
+        title_label.setStyleSheet("color: #333; padding: 2px;")
         layout.addWidget(title_label)
         
         self.todo_list = QListWidget()
+        self.todo_list.setStyleSheet("""
+            QListWidget {
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                padding: 2px;
+            }
+            QListWidget::item {
+                padding: 6px;
+                border-bottom: 1px solid #f0f0f0;
+            }
+            QListWidget::item:selected {
+                background-color: #e3f2fd;
+                color: #1565C0;
+            }
+            QListWidget::item:hover {
+                background-color: #f5f5f5;
+            }
+        """)
         self.todo_list.currentRowChanged.connect(self._on_todo_selected)
         layout.addWidget(self.todo_list)
         
@@ -184,63 +257,174 @@ class TodoModule(BaseModule):
         """
         panel = QWidget()
         layout = QVBoxLayout(panel)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(10)
+        layout.setContentsMargins(2, 2, 2, 2)
+        layout.setSpacing(5)
         
         title_label = QLabel("任务详情")
-        title_label.setFont(QFont("Microsoft YaHei", 12, QFont.Weight.Bold))
+        title_label.setFont(QFont("Microsoft YaHei", 11, QFont.Weight.Bold))
+        title_label.setStyleSheet("color: #333; padding: 2px;")
         layout.addWidget(title_label)
         
         form_group = QGroupBox("基本信息")
+        form_group.setStyleSheet("""
+            QGroupBox {
+                font-weight: bold;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                margin-top: 10px;
+                padding-top: 10px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 5px;
+            }
+        """)
         form_layout = QFormLayout(form_group)
+        form_layout.setSpacing(8)
         
         self.title_edit = QTextEdit()
         self.title_edit.setMaximumHeight(60)
         self.title_edit.setPlaceholderText("任务标题")
+        self.title_edit.setStyleSheet("""
+            QTextEdit {
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                padding: 5px;
+                background-color: #fafafa;
+            }
+        """)
         form_layout.addRow("标题:", self.title_edit)
         
         self.priority_combo = QComboBox()
         for priority_id, priority_name in self.PRIORITY_NAMES.items():
             self.priority_combo.addItem(priority_name, priority_id)
+        self.priority_combo.setStyleSheet("""
+            QComboBox {
+                padding: 6px 12px;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                background-color: white;
+            }
+            QComboBox:hover {
+                border-color: #2196F3;
+            }
+        """)
         form_layout.addRow("优先级:", self.priority_combo)
         
         self.status_combo = QComboBox()
         for status_id, status_name in self.STATUS_NAMES.items():
             self.status_combo.addItem(status_name, status_id)
+        self.status_combo.setStyleSheet("""
+            QComboBox {
+                padding: 6px 12px;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                background-color: white;
+            }
+            QComboBox:hover {
+                border-color: #2196F3;
+            }
+        """)
         form_layout.addRow("状态:", self.status_combo)
         
         self.due_date_edit = QDateEdit()
         self.due_date_edit.setCalendarPopup(True)
         self.due_date_edit.setDate(QDate.currentDate())
         self.due_date_edit.setSpecialValueText("无截止日期")
+        self.due_date_edit.setStyleSheet("""
+            QDateEdit {
+                padding: 6px 12px;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                background-color: white;
+            }
+            QDateEdit:hover {
+                border-color: #2196F3;
+            }
+        """)
         form_layout.addRow("截止日期:", self.due_date_edit)
         
         layout.addWidget(form_group)
         
         desc_group = QGroupBox("任务描述")
+        desc_group.setStyleSheet("""
+            QGroupBox {
+                font-weight: bold;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                margin-top: 10px;
+                padding-top: 10px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 5px;
+            }
+        """)
         desc_layout = QVBoxLayout(desc_group)
+        desc_layout.setContentsMargins(5, 5, 5, 5)
         
         self.description_edit = QTextEdit()
         self.description_edit.setPlaceholderText("输入任务详细描述...")
+        self.description_edit.setStyleSheet("""
+            QTextEdit {
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                padding: 5px;
+                background-color: #fafafa;
+            }
+        """)
         desc_layout.addWidget(self.description_edit)
         
         layout.addWidget(desc_group)
         
         btn_layout = QHBoxLayout()
+        btn_layout.setSpacing(8)
         
         save_btn = QPushButton("保存修改")
+        save_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #2196F3;
+                color: white;
+                border: none;
+                padding: 8px 16px;
+                border-radius: 4px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #1976D2;
+            }
+            QPushButton:pressed {
+                background-color: #1565C0;
+            }
+        """)
         save_btn.clicked.connect(self._on_save_todo)
         btn_layout.addWidget(save_btn)
         
         complete_btn = QPushButton("标记完成")
+        complete_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #FFC107;
+                color: #333;
+                border: none;
+                padding: 8px 16px;
+                border-radius: 4px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #FFB300;
+            }
+            QPushButton:pressed {
+                background-color: #FFA000;
+            }
+        """)
         complete_btn.clicked.connect(self._on_mark_complete)
         btn_layout.addWidget(complete_btn)
         
         btn_layout.addStretch()
         
         layout.addLayout(btn_layout)
-        
-        layout.addStretch()
         
         self._clear_detail_panel()
         
