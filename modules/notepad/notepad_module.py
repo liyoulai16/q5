@@ -5,11 +5,11 @@
 一个简单的文本编辑器工具
 """
 
-from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QTextEdit,
+from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QTextEdit,
                              QPushButton, QFileDialog, QMessageBox, QLabel,
                              QSplitter, QListWidget, QListWidgetItem, QInputDialog)
-from PyQt5.QtCore import Qt, QDateTime
-from PyQt5.QtGui import QFont
+from PyQt6.QtCore import Qt, QDateTime
+from PyQt6.QtGui import QFont
 
 from modules.module_manager import BaseModule
 from database.database_manager import DatabaseManager
@@ -82,7 +82,7 @@ class NotepadModule(BaseModule):
         toolbar = self._create_toolbar()
         main_layout.addWidget(toolbar)
         
-        content_splitter = QSplitter(Qt.Horizontal)
+        content_splitter = QSplitter(Qt.Orientation.Horizontal)
         
         notes_list_panel = self._create_notes_list_panel()
         content_splitter.addWidget(notes_list_panel)
@@ -141,7 +141,7 @@ class NotepadModule(BaseModule):
         layout.setSpacing(5)
         
         title_label = QLabel("笔记列表")
-        title_label.setFont(QFont("Microsoft YaHei", 12, QFont.Bold))
+        title_label.setFont(QFont("Microsoft YaHei", 12, QFont.Weight.Bold))
         layout.addWidget(title_label)
         
         self.notes_list = QListWidget()
@@ -160,7 +160,7 @@ class NotepadModule(BaseModule):
         layout.setSpacing(5)
         
         self.note_title_label = QLabel("未选择笔记")
-        self.note_title_label.setFont(QFont("Microsoft YaHei", 12, QFont.Bold))
+        self.note_title_label.setFont(QFont("Microsoft YaHei", 12, QFont.Weight.Bold))
         layout.addWidget(self.note_title_label)
         
         self.text_editor = QTextEdit()
@@ -182,7 +182,7 @@ class NotepadModule(BaseModule):
         
         for note in notes:
             item = QListWidgetItem(note['title'])
-            item.setData(Qt.UserRole, note['id'])
+            item.setData(Qt.ItemDataRole.UserRole, note['id'])
             item.setToolTip(f"最后更新: {note['updated_at']}")
             self.notes_list.addItem(item)
     
@@ -195,7 +195,7 @@ class NotepadModule(BaseModule):
             return
         
         item = self.notes_list.item(index)
-        note_id = item.data(Qt.UserRole)
+        note_id = item.data(Qt.ItemDataRole.UserRole)
         
         note = self._db.query_one(
             "SELECT id, title, content FROM notes WHERE id = ?",
@@ -238,7 +238,7 @@ class NotepadModule(BaseModule):
                 
                 for i in range(self.notes_list.count()):
                     item = self.notes_list.item(i)
-                    if item.data(Qt.UserRole) == note_id:
+                    if item.data(Qt.ItemDataRole.UserRole) == note_id:
                         self.notes_list.setCurrentRow(i)
                         break
                 
@@ -276,16 +276,16 @@ class NotepadModule(BaseModule):
             return
         
         item = self.notes_list.item(current_row)
-        note_id = item.data(Qt.UserRole)
+        note_id = item.data(Qt.ItemDataRole.UserRole)
         
         reply = QMessageBox.question(
             None, "确认删除",
             f"确定要删除笔记 \"{item.text()}\" 吗？",
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No
         )
         
-        if reply == QMessageBox.Yes:
+        if reply == QMessageBox.StandardButton.Yes:
             affected = self._db.delete('notes', 'id = ?', (note_id,))
             
             if affected > 0:

@@ -4,11 +4,11 @@
 主窗口模块
 """
 
-from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
+from PyQt6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                              QStackedWidget, QListWidget, QListWidgetItem,
                              QSplitter, QMessageBox, QLabel)
-from PyQt5.QtCore import Qt, QSize
-from PyQt5.QtGui import QFont, QIcon
+from PyQt6.QtCore import Qt, QSize
+from PyQt6.QtGui import QFont, QIcon
 
 from modules.module_manager import ModuleManager
 from database.database_manager import DatabaseManager
@@ -35,7 +35,7 @@ class MainWindow(QMainWindow):
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
         
-        splitter = QSplitter(Qt.Horizontal)
+        splitter = QSplitter(Qt.Orientation.Horizontal)
         
         left_panel = self._create_left_panel()
         splitter.addWidget(left_panel)
@@ -56,8 +56,8 @@ class MainWindow(QMainWindow):
         layout.setSpacing(10)
         
         title_label = QLabel("工具套件")
-        title_label.setFont(QFont("Microsoft YaHei", 16, QFont.Bold))
-        title_label.setAlignment(Qt.AlignCenter)
+        title_label.setFont(QFont("Microsoft YaHei", 16, QFont.Weight.Bold))
+        title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(title_label)
         
         self.module_list = QListWidget()
@@ -77,7 +77,7 @@ class MainWindow(QMainWindow):
         
         for module_id, module_info in modules.items():
             item = QListWidgetItem(module_info['name'])
-            item.setData(Qt.UserRole, module_id)
+            item.setData(Qt.ItemDataRole.UserRole, module_id)
             
             if 'icon' in module_info and module_info['icon']:
                 try:
@@ -95,7 +95,7 @@ class MainWindow(QMainWindow):
             return
         
         item = self.module_list.item(index)
-        module_id = item.data(Qt.UserRole)
+        module_id = item.data(Qt.ItemDataRole.UserRole)
         
         module_widget = self._get_or_create_module_widget(module_id)
         if module_widget:
@@ -120,10 +120,10 @@ class MainWindow(QMainWindow):
     def closeEvent(self, event):
         reply = QMessageBox.question(self, '确认退出',
                                      '确定要退出应用程序吗？',
-                                     QMessageBox.Yes | QMessageBox.No,
-                                     QMessageBox.No)
+                                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                                     QMessageBox.StandardButton.No)
         
-        if reply == QMessageBox.Yes:
+        if reply == QMessageBox.StandardButton.Yes:
             self.database_manager.close()
             self.module_manager.unload_all_modules()
             event.accept()

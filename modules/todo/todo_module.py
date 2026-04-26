@@ -5,12 +5,12 @@
 用于任务管理的工具
 """
 
-from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
+from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
                              QListWidget, QListWidgetItem, QInputDialog, QMessageBox,
                              QLabel, QCheckBox, QComboBox, QDateEdit, QTextEdit,
                              QSplitter, QGroupBox, QFormLayout)
-from PyQt5.QtCore import Qt, QDate, QDateTime
-from PyQt5.QtGui import QFont
+from PyQt6.QtCore import Qt, QDate, QDateTime
+from PyQt6.QtGui import QFont
 
 from modules.module_manager import BaseModule
 from database.database_manager import DatabaseManager
@@ -114,7 +114,7 @@ class TodoModule(BaseModule):
         toolbar = self._create_toolbar()
         main_layout.addWidget(toolbar)
         
-        content_splitter = QSplitter(Qt.Horizontal)
+        content_splitter = QSplitter(Qt.Orientation.Horizontal)
         
         todo_list_panel = self._create_todo_list_panel()
         content_splitter.addWidget(todo_list_panel)
@@ -169,7 +169,7 @@ class TodoModule(BaseModule):
         layout.setSpacing(5)
         
         title_label = QLabel("任务列表")
-        title_label.setFont(QFont("Microsoft YaHei", 12, QFont.Bold))
+        title_label.setFont(QFont("Microsoft YaHei", 12, QFont.Weight.Bold))
         layout.addWidget(title_label)
         
         self.todo_list = QListWidget()
@@ -188,7 +188,7 @@ class TodoModule(BaseModule):
         layout.setSpacing(10)
         
         title_label = QLabel("任务详情")
-        title_label.setFont(QFont("Microsoft YaHei", 12, QFont.Bold))
+        title_label.setFont(QFont("Microsoft YaHei", 12, QFont.Weight.Bold))
         layout.addWidget(title_label)
         
         form_group = QGroupBox("基本信息")
@@ -280,10 +280,10 @@ class TodoModule(BaseModule):
             display_text = f"[{status_text}] {todo['title']} (优先级: {priority_text})"
             
             item = QListWidgetItem(display_text)
-            item.setData(Qt.UserRole, todo['id'])
+            item.setData(Qt.ItemDataRole.UserRole, todo['id'])
             
             if todo['status'] == self.STATUS_COMPLETED:
-                item.setFlags(item.flags() & ~Qt.ItemIsEnabled)
+                item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEnabled)
             elif todo['priority'] == self.PRIORITY_URGENT:
                 font = item.font()
                 font.setBold(True)
@@ -300,7 +300,7 @@ class TodoModule(BaseModule):
             return
         
         item = self.todo_list.item(index)
-        todo_id = item.data(Qt.UserRole)
+        todo_id = item.data(Qt.ItemDataRole.UserRole)
         
         todo = self._db.query_one(
             "SELECT * FROM todos WHERE id = ?",
@@ -366,7 +366,7 @@ class TodoModule(BaseModule):
                 
                 for i in range(self.todo_list.count()):
                     item = self.todo_list.item(i)
-                    if item.data(Qt.UserRole) == todo_id:
+                    if item.data(Qt.ItemDataRole.UserRole) == todo_id:
                         self.todo_list.setCurrentRow(i)
                         break
                 
@@ -426,16 +426,16 @@ class TodoModule(BaseModule):
             return
         
         item = self.todo_list.item(current_row)
-        todo_id = item.data(Qt.UserRole)
+        todo_id = item.data(Qt.ItemDataRole.UserRole)
         
         reply = QMessageBox.question(
             None, "确认删除",
             f"确定要删除任务吗？",
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No
         )
         
-        if reply == QMessageBox.Yes:
+        if reply == QMessageBox.StandardButton.Yes:
             affected = self._db.delete('todos', 'id = ?', (todo_id,))
             
             if affected > 0:
