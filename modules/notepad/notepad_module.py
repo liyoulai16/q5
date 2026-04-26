@@ -76,13 +76,14 @@ class NotepadModule(BaseModule):
         """
         widget = QWidget()
         main_layout = QVBoxLayout(widget)
-        main_layout.setContentsMargins(5, 5, 5, 5)
-        main_layout.setSpacing(5)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(2)
         
         toolbar = self._create_toolbar()
         main_layout.addWidget(toolbar)
         
         content_splitter = QSplitter(Qt.Orientation.Horizontal)
+        content_splitter.setChildrenCollapsible(False)
         
         notes_list_panel = self._create_notes_list_panel()
         content_splitter.addWidget(notes_list_panel)
@@ -92,7 +93,7 @@ class NotepadModule(BaseModule):
         
         content_splitter.setSizes([200, 800])
         
-        main_layout.addWidget(content_splitter)
+        main_layout.addWidget(content_splitter, 1)
         
         self._load_notes_list()
         
@@ -217,11 +218,11 @@ class NotepadModule(BaseModule):
         """
         panel = QWidget()
         layout = QVBoxLayout(panel)
-        layout.setContentsMargins(2, 2, 2, 2)
-        layout.setSpacing(3)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(1)
         
         title_label = QLabel("笔记列表")
-        title_label.setFont(QFont("Microsoft YaHei", 11, QFont.Weight.Bold))
+        title_label.setFont(QFont("Microsoft YaHei", 10, QFont.Weight.Bold))
         title_label.setStyleSheet("color: #333; padding: 2px;")
         layout.addWidget(title_label)
         
@@ -229,11 +230,11 @@ class NotepadModule(BaseModule):
         self.notes_list.setStyleSheet("""
             QListWidget {
                 border: 1px solid #ddd;
-                border-radius: 4px;
-                padding: 2px;
+                border-radius: 2px;
+                padding: 0px;
             }
             QListWidget::item {
-                padding: 5px;
+                padding: 4px;
                 border-bottom: 1px solid #f0f0f0;
             }
             QListWidget::item:selected {
@@ -245,7 +246,7 @@ class NotepadModule(BaseModule):
             }
         """)
         self.notes_list.currentRowChanged.connect(self._on_note_selected)
-        layout.addWidget(self.notes_list)
+        layout.addWidget(self.notes_list, 1)
         
         return panel
     
@@ -255,11 +256,11 @@ class NotepadModule(BaseModule):
         """
         panel = QWidget()
         layout = QVBoxLayout(panel)
-        layout.setContentsMargins(2, 2, 2, 2)
-        layout.setSpacing(3)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(1)
         
         self.note_title_label = QLabel("未选择笔记")
-        self.note_title_label.setFont(QFont("Microsoft YaHei", 11, QFont.Weight.Bold))
+        self.note_title_label.setFont(QFont("Microsoft YaHei", 10, QFont.Weight.Bold))
         self.note_title_label.setStyleSheet("color: #333; padding: 2px;")
         layout.addWidget(self.note_title_label)
         
@@ -269,12 +270,12 @@ class NotepadModule(BaseModule):
         self.text_editor.setStyleSheet("""
             QTextEdit {
                 border: 1px solid #ddd;
-                border-radius: 4px;
-                padding: 5px;
+                border-radius: 2px;
+                padding: 3px;
                 background-color: #fafafa;
             }
         """)
-        layout.addWidget(self.text_editor)
+        layout.addWidget(self.text_editor, 1)
         
         return panel
     
