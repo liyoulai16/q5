@@ -50,8 +50,8 @@ class LoginDialog(QDialog):
             }
         """)
         header_layout = QVBoxLayout(header_frame)
-        header_layout.setContentsMargins(30, 40, 30, 40)
-        header_layout.setSpacing(10)
+        header_layout.setContentsMargins(30, 25, 30, 25)
+        header_layout.setSpacing(8)
         
         icon_label = QLabel("🔐")
         icon_label.setFont(QFont("Microsoft YaHei", 48))
@@ -79,8 +79,8 @@ class LoginDialog(QDialog):
             }
         """)
         content_layout = QVBoxLayout(content_frame)
-        content_layout.setContentsMargins(40, 30, 40, 30)
-        content_layout.setSpacing(20)
+        content_layout.setContentsMargins(40, 20, 40, 20)
+        content_layout.setSpacing(15)
         
         username_layout = QVBoxLayout()
         username_layout.setSpacing(8)
