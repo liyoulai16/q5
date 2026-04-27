@@ -643,10 +643,18 @@ class WeatherMainWidget(QWidget):
         
         QMessageBox.critical(self, "错误", f"获取天气数据失败: {error_msg}")
     
+    def _clear_layout(self, layout):
+        """安全清除布局中的所有控件"""
+        while layout.count():
+            item = layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+            if item.layout():
+                self._clear_layout(item.layout())
+    
     def _update_forecast_display(self):
         """更新预报显示"""
-        for i in reversed(range(self.today_card_layout.count())):
-            self.today_card_layout.itemAt(i).widget().setParent(None)
+        self._clear_layout(self.today_card_layout)
         
         if self._forecast_data:
             today_data = self._forecast_data[0]
@@ -656,8 +664,7 @@ class WeatherMainWidget(QWidget):
             self.weather_detail = WeatherDetailWidget(today_data)
             self.today_card_layout.addWidget(self.weather_detail)
         
-        for i in reversed(range(self.forecast_container_layout.count())):
-            self.forecast_container_layout.itemAt(i).widget().setParent(None)
+        self._clear_layout(self.forecast_container_layout)
         
         for weather in self._forecast_data[1:]:
             card = WeatherCard(weather, is_today=False)
@@ -667,8 +674,7 @@ class WeatherMainWidget(QWidget):
     
     def _update_history_display(self):
         """更新历史显示"""
-        for i in reversed(range(self.history_container_layout.count())):
-            self.history_container_layout.itemAt(i).widget().setParent(None)
+        self._clear_layout(self.history_container_layout)
         
         for weather in self._history_data:
             card = WeatherCard(weather, is_today=False)
