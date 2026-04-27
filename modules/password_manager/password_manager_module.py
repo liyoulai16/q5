@@ -24,6 +24,7 @@ from database.database_manager import DatabaseManager
 
 PASSWORD_CATEGORIES = [
     ("全部", "全部"),
+    ("⭐ 收藏", "收藏"),
     ("社交账号", "📱"),
     ("工作邮箱", "📧"),
     ("金融服务", "💰"),
@@ -31,6 +32,8 @@ PASSWORD_CATEGORIES = [
     ("游戏账号", "🎮"),
     ("其他", "📁"),
 ]
+
+FAVORITES_CATEGORY = "⭐ 收藏"
 
 
 class PasswordStrengthChecker:
@@ -74,12 +77,22 @@ class PasswordCard(QFrame):
     edit_clicked = pyqtSignal(int)
     delete_clicked = pyqtSignal(int)
     copy_clicked = pyqtSignal(str)
-    favorite_clicked = pyqtSignal(int)
+    favorite_clicked = pyqtSignal(int, bool)
     
     def __init__(self, password_data: Dict[str, Any], parent=None):
         super().__init__(parent)
         self.password_data = password_data
+        self._fav_btn = None
         self._init_ui()
+    
+    def get_password_id(self) -> int:
+        return self.password_data.get('id', 0)
+    
+    def update_favorite_status(self, is_favorite: bool):
+        """更新收藏状态，只更新按钮显示"""
+        self.password_data['is_favorite'] = 1 if is_favorite else 0
+        if self._fav_btn:
+            self._fav_btn.setText("⭐" if is_favorite else "☆")
     
     def _init_ui(self):
         self.setMinimumHeight(80)
@@ -101,9 +114,9 @@ class PasswordCard(QFrame):
         layout.setSpacing(15)
         
         is_favorite = self.password_data.get('is_favorite', 0) == 1
-        fav_btn = QPushButton("⭐" if is_favorite else "☆")
-        fav_btn.setMaximumWidth(35)
-        fav_btn.setStyleSheet("""
+        self._fav_btn = QPushButton("⭐" if is_favorite else "☆")
+        self._fav_btn.setMaximumWidth(35)
+        self._fav_btn.setStyleSheet("""
             QPushButton {
                 background-color: transparent;
                 border: none;
@@ -114,8 +127,14 @@ class PasswordCard(QFrame):
                 border-radius: 4px;
             }
         """)
-        fav_btn.clicked.connect(lambda: self.favorite_clicked.emit(self.password_data['id']))
-        layout.addWidget(fav_btn)
+        self._fav_btn.clicked.connect(self._on_fav_clicked)
+        layout.addWidget(self._fav_btn)
+    
+    def _on_fav_clicked(self):
+        """收藏按钮点击"""
+        current_is_favorite = self.password_data.get('is_favorite', 0) == 1
+        new_is_favorite = not current_is_favorite
+        self.favorite_clicked.emit(self.password_data['id'], new_is_favorite)
         
         info_layout = QVBoxLayout()
         info_layout.setSpacing(4)
@@ -761,7 +780,9 @@ class PasswordManagerMainWidget(QWidget):
         query = "SELECT * FROM passwords WHERE 1=1"
         params = []
         
-        if self._current_category != "全部":
+        if self._current_category == FAVORITES_CATEGORY:
+            query += " AND is_favorite = 1"
+        elif self._current_category != "全部":
             query += " AND category = ?"
             params.append(self._current_category)
         
@@ -868,27 +889,25 @@ class PasswordManagerMainWidget(QWidget):
             clipboard.setText(password, QClipboard.Mode.Clipboard)
             QMessageBox.information(self, "提示", "密码已复制到剪贴板！")
     
-    def _on_toggle_favorite(self, pwd_id: int):
-        """切换收藏状态"""
-        pwd_data = self._db.query_one(
-            "SELECT is_favorite FROM passwords WHERE id = ?",
-            (pwd_id,)
-        )
-        
-        if not pwd_data:
-            return
-        
-        new_favorite = 0 if pwd_data['is_favorite'] == 1 else 1
+    def _on_toggle_favorite(self, pwd_id: int, new_is_favorite: bool):
+        """切换收藏状态 - 只更新数据库和当前卡片显示，不重新排序"""
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        new_favorite_value = 1 if new_is_favorite else 0
         
         self._db.update(
             'passwords',
-            {'is_favorite': new_favorite, 'updated_at': now},
+            {'is_favorite': new_favorite_value, 'updated_at': now},
             'id = ?',
             (pwd_id,)
         )
         
-        self._load_passwords()
+        for i in range(self.container_layout.count()):
+            item = self.container_layout.itemAt(i)
+            if item and item.widget():
+                widget = item.widget()
+                if hasattr(widget, 'get_password_id') and widget.get_password_id() == pwd_id:
+                    widget.update_favorite_status(new_is_favorite)
+                    break
 
 
 class PasswordManagerModule(BaseModule):
