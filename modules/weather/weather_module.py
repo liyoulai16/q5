@@ -27,6 +27,251 @@ except ImportError:
     REQUESTS_AVAILABLE = False
 
 
+class OpenMeteoWeatherFetcher:
+    """Open-Meteo天气数据获取器（免费、无API密钥、支持中文城市名）"""
+    
+    WEATHER_CODE_MAP = {
+        0: ("晴", "☀️"),
+        1: ("大部晴朗", "🌤️"),
+        2: ("多云", "⛅"),
+        3: ("阴", "☁️"),
+        45: ("雾", "🌫️"),
+        48: ("雾凇", "🌫️"),
+        51: ("小毛毛雨", "🌧️"),
+        53: ("毛毛雨", "🌧️"),
+        55: ("大毛毛雨", "🌧️"),
+        56: ("冻毛毛雨", "🌧️"),
+        57: ("大冻毛毛雨", "🌧️"),
+        61: ("小雨", "🌧️"),
+        63: ("中雨", "🌧️"),
+        65: ("大雨", "🌧️"),
+        66: ("冻雨", "🌧️"),
+        67: ("大冻雨", "🌧️"),
+        71: ("小雪", "❄️"),
+        73: ("中雪", "❄️"),
+        75: ("大雪", "❄️"),
+        77: "雪粒",
+        80: ("小阵雨", "🌧️"),
+        81: ("阵雨", "🌧️"),
+        82: ("强阵雨", "🌧️"),
+        85: ("小阵雪", "❄️"),
+        86: ("大阵雪", "❄️"),
+        95: ("雷阵雨", "⛈️"),
+        96: ("雷阵雨伴小冰雹", "⛈️"),
+        99: ("雷阵雨伴大冰雹", "⛈️"),
+    }
+    
+    WIND_DIRECTION_MAP = {
+        0: "北风",
+        45: "东北风",
+        90: "东风",
+        135: "东南风",
+        180: "南风",
+        225: "西南风",
+        270: "西风",
+        315: "西北风",
+    }
+    
+    @classmethod
+    def get_weather_condition(cls, weather_code: int) -> tuple:
+        """根据天气代码获取天气状况和图标"""
+        result = cls.WEATHER_CODE_MAP.get(weather_code)
+        if result is None:
+            if weather_code < 45:
+                return ("晴", "☀️")
+            elif weather_code < 60:
+                return ("雾", "🌫️")
+            elif weather_code < 70:
+                return ("雨", "🌧️")
+            elif weather_code < 80:
+                return ("雪", "❄️")
+            else:
+                return ("雷阵雨", "⛈️")
+        if isinstance(result, tuple):
+            return result
+        return (result, "🌤️")
+    
+    @classmethod
+    def get_wind_direction(cls, degrees: float) -> str:
+        """根据风向角度获取中文风向"""
+        if degrees < 0:
+            degrees += 360
+        degrees = degrees % 360
+        
+        min_diff = 360
+        closest_dir = 0
+        for angle in cls.WIND_DIRECTION_MAP.keys():
+            diff = abs(degrees - angle)
+            if diff > 180:
+                diff = 360 - diff
+            if diff < min_diff:
+                min_diff = diff
+                closest_dir = angle
+        
+        return cls.WIND_DIRECTION_MAP[closest_dir]
+    
+    @classmethod
+    def geocode_city(cls, city_name: str, language: str = "zh") -> Optional[Dict[str, Any]]:
+        """通过城市名称获取地理坐标（Open-Meteo地理编码API）"""
+        if not REQUESTS_AVAILABLE:
+            raise RuntimeError("requests库未安装")
+        
+        url = f"https://geocoding-api.open-meteo.com/v1/search?name={city_name}&count=5&language={language}&format=json"
+        
+        try:
+            response = requests.get(url, timeout=10, headers={
+                "User-Agent": "WeatherApp/1.0"
+            })
+            response.raise_for_status()
+            data = response.json()
+            
+            results = data.get("results", [])
+            if not results:
+                return None
+            
+            return results[0]
+            
+        except Exception as e:
+            raise RuntimeError(f"地理编码失败: {str(e)}")
+    
+    @classmethod
+    def fetch_weather_by_coords(cls, latitude: float, longitude: float, 
+                                  city_name: str = "", days: int = 7) -> List[Dict[str, Any]]:
+        """通过经纬度获取天气预报"""
+        if not REQUESTS_AVAILABLE:
+            raise RuntimeError("requests库未安装")
+        
+        url = (
+            f"https://api.open-meteo.com/v1/forecast?"
+            f"latitude={latitude}&longitude={longitude}"
+            f"&current=temperature_2m,relative_humidity_2m,apparent_temperature,"
+            f"precipitation,weather_code,pressure_msl,wind_speed_10m,wind_direction_10m,"
+            f"cloud_cover,visibility"
+            f"&daily=weather_code,temperature_2m_max,temperature_2m_min,"
+            f"precipitation_sum,uv_index_max,wind_speed_10m_max,wind_direction_10m_dominant"
+            f"&timezone=auto"
+            f"&forecast_days={days}"
+        )
+        
+        try:
+            response = requests.get(url, timeout=10, headers={
+                "User-Agent": "WeatherApp/1.0"
+            })
+            response.raise_for_status()
+            data = response.json()
+            
+            current = data.get("current", {})
+            daily = data.get("daily", {})
+            forecast = []
+            today = datetime.now()
+            
+            dates = daily.get("time", [])
+            weather_codes = daily.get("weather_code", [])
+            temp_max = daily.get("temperature_2m_max", [])
+            temp_min = daily.get("temperature_2m_min", [])
+            precip_sum = daily.get("precipitation_sum", [])
+            uv_index = daily.get("uv_index_max", [])
+            wind_speed_max = daily.get("wind_speed_10m_max", [])
+            wind_dir_dominant = daily.get("wind_direction_10m_dominant", [])
+            
+            for i in range(min(days, len(dates))):
+                date_str = dates[i] if i < len(dates) else ""
+                try:
+                    date = datetime.strptime(date_str, "%Y-%m-%d")
+                except:
+                    date = today + timedelta(days=i)
+                
+                code = weather_codes[i] if i < len(weather_codes) else 0
+                condition, icon = cls.get_weather_condition(code)
+                
+                high = temp_max[i] if i < len(temp_max) else 20
+                low = temp_min[i] if i < len(temp_min) else 10
+                precip = precip_sum[i] if i < len(precip_sum) else 0
+                uv = uv_index[i] if i < len(uv_index) else 0
+                wind_speed = wind_speed_max[i] if i < len(wind_speed_max) else 10
+                wind_dir_deg = wind_dir_dominant[i] if i < len(wind_dir_dominant) else 0
+                
+                if i == 0:
+                    temp_current = current.get("temperature_2m", (high + low) / 2)
+                    humidity = current.get("relative_humidity_2m", 50)
+                    pressure = current.get("pressure_msl", 1013)
+                    visibility_km = current.get("visibility", 10000) / 1000 if current.get("visibility") else 10
+                else:
+                    temp_current = (high + low) / 2
+                    humidity = 50 + int(precip * 5)
+                    pressure = 1013
+                    visibility_km = 10 if precip < 1 else 5
+                
+                weather_dict = {
+                    "city": city_name,
+                    "date": date.strftime("%Y-%m-%d"),
+                    "weekday": ["周一", "周二", "周三", "周四", "周五", "周六", "周日"][date.weekday()],
+                    "condition": condition,
+                    "icon": icon,
+                    "temp_high": int(round(high)),
+                    "temp_low": int(round(low)),
+                    "temp_current": int(round(temp_current)),
+                    "humidity": int(humidity),
+                    "wind_speed": int(round(wind_speed)),
+                    "wind_direction": cls.get_wind_direction(wind_dir_deg),
+                    "visibility": int(round(visibility_km)),
+                    "pressure": int(round(pressure)),
+                    "uv_index": int(round(uv)),
+                    "aqi": cls._estimate_aqi(humidity, visibility_km),
+                    "precipitation": precip,
+                }
+                
+                if i == 0:
+                    weather_dict["is_today"] = True
+                elif i == 1:
+                    weather_dict["is_tomorrow"] = True
+                
+                forecast.append(weather_dict)
+            
+            return forecast
+            
+        except Exception as e:
+            raise RuntimeError(f"获取天气数据失败: {str(e)}")
+    
+    @classmethod
+    def fetch_forecast(cls, city_name: str, days: int = 7) -> List[Dict[str, Any]]:
+        """通过城市名称获取天气预报（自动地理编码）"""
+        location = cls.geocode_city(city_name)
+        if location is None:
+            raise RuntimeError(f"无法找到城市: {city_name}")
+        
+        lat = location.get("latitude")
+        lon = location.get("longitude")
+        
+        display_name = location.get("name", city_name)
+        admin1 = location.get("admin1", "")
+        country = location.get("country", "")
+        if admin1 and display_name != admin1:
+            display_name = f"{display_name}, {admin1}"
+        
+        return cls.fetch_weather_by_coords(lat, lon, display_name, days)
+    
+    @classmethod
+    def fetch_current_weather(cls, city_name: str) -> Dict[str, Any]:
+        """获取当前天气"""
+        forecast = cls.fetch_forecast(city_name, 1)
+        if forecast:
+            return forecast[0]
+        raise RuntimeError("无法获取当前天气")
+    
+    @classmethod
+    def _estimate_aqi(cls, humidity: float, visibility_km: float) -> int:
+        """根据湿度和能见度估算空气质量指数"""
+        if visibility_km >= 20 and humidity <= 60:
+            return random.randint(20, 50)
+        elif visibility_km >= 10 and humidity <= 70:
+            return random.randint(50, 100)
+        elif visibility_km >= 5 and humidity <= 80:
+            return random.randint(100, 150)
+        else:
+            return random.randint(150, 200)
+
+
 class RealWeatherFetcher:
     """真实天气数据获取器（使用wttr.in API）"""
     
@@ -556,20 +801,31 @@ class WeatherModuleWorker(QThread):
             data = []
             use_fallback = False
             error_msg = ""
+            api_used = None
+            api_errors = []
             
             if self.use_real_api and REQUESTS_AVAILABLE:
-                try:
-                    if self.data_type == "forecast":
-                        data = RealWeatherFetcher.fetch_forecast(self.city_name, self.days)
-                    elif self.data_type == "history":
-                        data = WeatherDataGenerator.generate_history(self.city_name, self.days)
-                    else:
-                        data = []
-                except Exception as e:
-                    error_msg = str(e)
-                    use_fallback = True
+                if self.data_type == "forecast":
+                    try:
+                        data = OpenMeteoWeatherFetcher.fetch_forecast(self.city_name, self.days)
+                        api_used = "Open-Meteo"
+                    except Exception as e:
+                        api_errors.append(f"Open-Meteo: {str(e)}")
+                        try:
+                            data = RealWeatherFetcher.fetch_forecast(self.city_name, self.days)
+                            api_used = "wttr.in"
+                        except Exception as e2:
+                            api_errors.append(f"wttr.in: {str(e2)}")
+                            error_msg = "; ".join(api_errors)
+                            use_fallback = True
+                elif self.data_type == "history":
+                    data = WeatherDataGenerator.generate_history(self.city_name, self.days)
+                    api_used = "模拟数据(历史)"
+                else:
+                    data = []
             else:
                 use_fallback = True
+                error_msg = "requests库未安装" if not REQUESTS_AVAILABLE else "未启用真实API"
             
             if use_fallback:
                 if self.data_type == "forecast":
@@ -584,7 +840,8 @@ class WeatherModuleWorker(QThread):
                 "data": data,
                 "city": self.city_name,
                 "type": self.data_type,
-                "used_real_api": not use_fallback and self.use_real_api and REQUESTS_AVAILABLE,
+                "used_real_api": api_used is not None and api_used not in ["模拟数据(历史)"],
+                "api_used": api_used,
                 "fallback_message": error_msg if use_fallback else None
             })
         except Exception as e:
@@ -648,6 +905,8 @@ class WeatherMainWidget(QWidget):
         self.city_combo.addItems(popular_cities)
         self.city_combo.setCurrentText("北京")
         self.city_combo.lineEdit().setPlaceholderText("输入城市名称...")
+        self.city_combo.activated.connect(self._on_city_selected)
+        self.city_combo.lineEdit().returnPressed.connect(self._on_search)
         header_layout.addWidget(self.city_combo)
         
         self.search_btn = QPushButton("🔍 查询")
@@ -888,6 +1147,13 @@ class WeatherMainWidget(QWidget):
         
         return widget
     
+    def _on_city_selected(self, index: int):
+        """下拉列表城市选择事件"""
+        city = self.city_combo.currentText().strip()
+        if city and city != self._current_city:
+            self._current_city = city
+            self._load_weather_data()
+    
     def _on_search(self):
         """搜索按钮点击事件"""
         city = self.city_combo.currentText().strip()
@@ -948,18 +1214,23 @@ class WeatherMainWidget(QWidget):
         self.refresh_btn.setEnabled(True)
         
         used_real_api = result.get("used_real_api", False)
+        api_used = result.get("api_used")
         fallback_message = result.get("fallback_message")
         
-        if used_real_api:
-            self._update_data_source_info("📡 数据来源: 实时API (wttr.in)", "#4CAF50")
+        if used_real_api and api_used:
+            self._update_data_source_info(f"📡 数据来源: 实时API ({api_used})", "#4CAF50")
             self._api_status_label.setText("✅ 在线")
             self._api_status_label.setStyleSheet("color: #4CAF50;")
         else:
             if fallback_message:
-                self._update_data_source_info(f"⚠️ 数据来源: 本地模拟 (API错误: {fallback_message})", "#FF9800")
+                display_msg = fallback_message
+                if len(display_msg) > 80:
+                    display_msg = display_msg[:80] + "..."
+                self._update_data_source_info(f"⚠️ 数据来源: 本地模拟 (API错误)", "#FF9800")
+                self._api_status_label.setText("❌ 离线模式")
             else:
                 self._update_data_source_info("⚠️ 数据来源: 本地模拟", "#FF9800")
-            self._api_status_label.setText("❌ 离线模式")
+                self._api_status_label.setText("❌ 离线模式")
             self._api_status_label.setStyleSheet("color: #F44336;")
         
         self._update_last_update_time()
