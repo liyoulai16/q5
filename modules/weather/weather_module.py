@@ -7,6 +7,8 @@
 
 import json
 import random
+import os
+import urllib3
 from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional
 
@@ -22,9 +24,44 @@ from database.database_manager import DatabaseManager
 
 try:
     import requests
+    from requests.adapters import HTTPAdapter
+    from urllib3.util.retry import Retry
     REQUESTS_AVAILABLE = True
 except ImportError:
     REQUESTS_AVAILABLE = False
+
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+NO_PROXY_ENV = {
+    'http_proxy': '',
+    'https_proxy': '',
+    'HTTP_PROXY': '',
+    'HTTPS_PROXY': '',
+    'no_proxy': '*',
+    'NO_PROXY': '*',
+}
+
+
+def create_requests_session() -> requests.Session:
+    """创建不使用代理的requests会话"""
+    session = requests.Session()
+    
+    retry_strategy = Retry(
+        total=2,
+        backoff_factor=0.5,
+        status_forcelist=[429, 500, 502, 503, 504],
+    )
+    adapter = HTTPAdapter(max_retries=retry_strategy)
+    session.mount("http://", adapter)
+    session.mount("https://", adapter)
+    
+    session.trust_env = False
+    session.proxies = {
+        'http': '',
+        'https': '',
+    }
+    
+    return session
 
 
 class OpenMeteoWeatherFetcher:
@@ -116,12 +153,17 @@ class OpenMeteoWeatherFetcher:
         if not REQUESTS_AVAILABLE:
             raise RuntimeError("requests库未安装")
         
-        url = f"https://geocoding-api.open-meteo.com/v1/search?name={city_name}&count=5&language={language}&format=json"
+        import urllib.parse
+        encoded_city = urllib.parse.quote(city_name)
+        url = f"https://geocoding-api.open-meteo.com/v1/search?name={encoded_city}&count=5&language={language}&format=json"
         
+        session = None
         try:
-            response = requests.get(url, timeout=10, headers={
-                "User-Agent": "WeatherApp/1.0"
-            })
+            session = create_requests_session()
+            response = session.get(url, timeout=15, headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Accept": "application/json",
+            }, verify=False)
             response.raise_for_status()
             data = response.json()
             
@@ -132,7 +174,18 @@ class OpenMeteoWeatherFetcher:
             return results[0]
             
         except Exception as e:
-            raise RuntimeError(f"地理编码失败: {str(e)}")
+            error_msg = str(e)
+            if "SSL" in error_msg or "ssl" in error_msg:
+                raise RuntimeError(f"地理编码失败 (SSL错误): {error_msg}")
+            elif "Proxy" in error_msg or "proxy" in error_msg:
+                raise RuntimeError(f"地理编码失败 (代理错误): {error_msg}")
+            elif "Connection" in error_msg or "connection" in error_msg:
+                raise RuntimeError(f"地理编码失败 (连接错误): {error_msg}")
+            else:
+                raise RuntimeError(f"地理编码失败: {error_msg}")
+        finally:
+            if session:
+                session.close()
     
     @classmethod
     def fetch_weather_by_coords(cls, latitude: float, longitude: float, 
@@ -153,10 +206,13 @@ class OpenMeteoWeatherFetcher:
             f"&forecast_days={days}"
         )
         
+        session = None
         try:
-            response = requests.get(url, timeout=10, headers={
-                "User-Agent": "WeatherApp/1.0"
-            })
+            session = create_requests_session()
+            response = session.get(url, timeout=15, headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Accept": "application/json",
+            }, verify=False)
             response.raise_for_status()
             data = response.json()
             
@@ -231,7 +287,18 @@ class OpenMeteoWeatherFetcher:
             return forecast
             
         except Exception as e:
-            raise RuntimeError(f"获取天气数据失败: {str(e)}")
+            error_msg = str(e)
+            if "SSL" in error_msg or "ssl" in error_msg:
+                raise RuntimeError(f"获取天气数据失败 (SSL错误): {error_msg}")
+            elif "Proxy" in error_msg or "proxy" in error_msg:
+                raise RuntimeError(f"获取天气数据失败 (代理错误): {error_msg}")
+            elif "Connection" in error_msg or "connection" in error_msg:
+                raise RuntimeError(f"获取天气数据失败 (连接错误): {error_msg}")
+            else:
+                raise RuntimeError(f"获取天气数据失败: {error_msg}")
+        finally:
+            if session:
+                session.close()
     
     @classmethod
     def fetch_forecast(cls, city_name: str, days: int = 7) -> List[Dict[str, Any]]:
@@ -361,12 +428,17 @@ class RealWeatherFetcher:
         if not REQUESTS_AVAILABLE:
             raise RuntimeError("requests库未安装，无法获取真实天气数据")
         
-        url = f"https://wttr.in/{city_name}?format=j1&m"
+        import urllib.parse
+        encoded_city = urllib.parse.quote(city_name)
+        url = f"https://wttr.in/{encoded_city}?format=j1&m"
         
+        session = None
         try:
-            response = requests.get(url, timeout=10, headers={
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-            })
+            session = create_requests_session()
+            response = session.get(url, timeout=15, headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Accept": "application/json",
+            }, verify=False)
             response.raise_for_status()
             data = response.json()
             
@@ -408,10 +480,19 @@ class RealWeatherFetcher:
                 "is_today": True,
             }
             
-        except requests.exceptions.RequestException as e:
-            raise RuntimeError(f"获取天气数据失败: {str(e)}")
-        except (KeyError, ValueError) as e:
-            raise RuntimeError(f"解析天气数据失败: {str(e)}")
+        except Exception as e:
+            error_msg = str(e)
+            if "SSL" in error_msg or "ssl" in error_msg:
+                raise RuntimeError(f"获取天气数据失败 (SSL错误): {error_msg}")
+            elif "Proxy" in error_msg or "proxy" in error_msg:
+                raise RuntimeError(f"获取天气数据失败 (代理错误): {error_msg}")
+            elif "Connection" in error_msg or "connection" in error_msg:
+                raise RuntimeError(f"获取天气数据失败 (连接错误): {error_msg}")
+            else:
+                raise RuntimeError(f"获取天气数据失败: {error_msg}")
+        finally:
+            if session:
+                session.close()
     
     @classmethod
     def fetch_forecast(cls, city_name: str, days: int = 7) -> List[Dict[str, Any]]:
@@ -419,12 +500,17 @@ class RealWeatherFetcher:
         if not REQUESTS_AVAILABLE:
             raise RuntimeError("requests库未安装，无法获取真实天气数据")
         
-        url = f"https://wttr.in/{city_name}?format=j1&m"
+        import urllib.parse
+        encoded_city = urllib.parse.quote(city_name)
+        url = f"https://wttr.in/{encoded_city}?format=j1&m"
         
+        session = None
         try:
-            response = requests.get(url, timeout=10, headers={
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-            })
+            session = create_requests_session()
+            response = session.get(url, timeout=15, headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Accept": "application/json",
+            }, verify=False)
             response.raise_for_status()
             data = response.json()
             
@@ -487,10 +573,19 @@ class RealWeatherFetcher:
             
             return forecast
             
-        except requests.exceptions.RequestException as e:
-            raise RuntimeError(f"获取天气预报失败: {str(e)}")
-        except (KeyError, ValueError) as e:
-            raise RuntimeError(f"解析天气预报失败: {str(e)}")
+        except Exception as e:
+            error_msg = str(e)
+            if "SSL" in error_msg or "ssl" in error_msg:
+                raise RuntimeError(f"获取天气预报失败 (SSL错误): {error_msg}")
+            elif "Proxy" in error_msg or "proxy" in error_msg:
+                raise RuntimeError(f"获取天气预报失败 (代理错误): {error_msg}")
+            elif "Connection" in error_msg or "connection" in error_msg:
+                raise RuntimeError(f"获取天气预报失败 (连接错误): {error_msg}")
+            else:
+                raise RuntimeError(f"获取天气预报失败: {error_msg}")
+        finally:
+            if session:
+                session.close()
     
     @classmethod
     def _estimate_aqi(cls, humidity: int, visibility: int) -> int:
@@ -883,11 +978,11 @@ class WeatherMainWidget(QWidget):
         
         self.city_combo = QComboBox()
         self.city_combo.setEditable(True)
-        self.city_combo.setMinimumWidth(150)
+        self.city_combo.setMinimumWidth(180)
         self.city_combo.setFont(QFont("Microsoft YaHei", 11))
         self.city_combo.setStyleSheet("""
             QComboBox {
-                padding: 8px 12px;
+                padding: 8px 30px 8px 12px;
                 border: 1px solid #ddd;
                 border-radius: 4px;
                 background-color: white;
@@ -895,9 +990,44 @@ class WeatherMainWidget(QWidget):
             QComboBox:hover {
                 border-color: #1565C0;
             }
+            QComboBox:focus {
+                border-color: #1565C0;
+                border-width: 2px;
+            }
             QComboBox::drop-down {
-                border: none;
-                padding-right: 8px;
+                subcontrol-origin: padding;
+                subcontrol-position: center right;
+                width: 25px;
+                border-left: 1px solid #ddd;
+                border-top-right-radius: 4px;
+                border-bottom-right-radius: 4px;
+                background-color: #f5f5f5;
+            }
+            QComboBox::drop-down:hover {
+                background-color: #e0e0e0;
+            }
+            QComboBox::down-arrow {
+                image: none;
+                border-left: 5px solid transparent;
+                border-right: 5px solid transparent;
+                border-top: 6px solid #666666;
+                margin-right: 5px;
+            }
+            QComboBox::down-arrow:on {
+                border-top: none;
+                border-bottom: 6px solid #666666;
+            }
+            QComboBox QAbstractItemView {
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                background-color: white;
+                selection-background-color: #1565C0;
+                selection-color: white;
+                padding: 5px;
+            }
+            QComboBox QAbstractItemView::item {
+                min-height: 25px;
+                padding: 5px 10px;
             }
         """)
         
