@@ -7,6 +7,8 @@
 
 import os
 import sqlite3
+import hashlib
+import secrets
 from typing import Any, List, Dict, Optional, Tuple
 from contextlib import contextmanager
 
@@ -75,6 +77,8 @@ class DatabaseManager:
         初始化数据库表结构
         """
         self._create_settings_table()
+        self._create_users_table()
+        self._create_passwords_table()
     
     def _create_settings_table(self):
         """
@@ -95,6 +99,117 @@ class DatabaseManager:
         
         create_index_sql = "CREATE INDEX IF NOT EXISTS idx_settings_key ON settings(key)"
         self.execute(create_index_sql)
+    
+    def _create_users_table(self):
+        """
+        创建用户表
+        """
+        create_table_sql = """
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT NOT NULL UNIQUE,
+            password_hash TEXT NOT NULL,
+            salt TEXT NOT NULL,
+            email TEXT,
+            is_active INTEGER DEFAULT 1,
+            last_login TIMESTAMP,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+        
+        self.execute(create_table_sql)
+        
+        create_index_sql = "CREATE INDEX IF NOT EXISTS idx_users_username ON users(username)"
+        self.execute(create_index_sql)
+        
+        self._create_default_user()
+    
+    def _create_default_user(self):
+        """
+        创建默认用户
+        用户名: user, 密码: 123456
+        """
+        existing = self.query_one("SELECT id FROM users WHERE username = ?", ("user",))
+        
+        if not existing:
+            password = "123456"
+            salt = secrets.token_hex(16)
+            password_hash = self._hash_password(password, salt)
+            
+            self.insert('users', {
+                'username': 'user',
+                'password_hash': password_hash,
+                'salt': salt,
+                'is_active': 1
+            })
+            print("默认用户已创建: user / 123456")
+    
+    def _hash_password(self, password: str, salt: str) -> str:
+        """
+        使用SHA-256哈希密码
+        """
+        combined = password + salt
+        return hashlib.sha256(combined.encode('utf-8')).hexdigest()
+    
+    def verify_password(self, username: str, password: str) -> bool:
+        """
+        验证用户密码
+        """
+        user = self.query_one(
+            "SELECT password_hash, salt, is_active FROM users WHERE username = ?",
+            (username,)
+        )
+        
+        if not user:
+            return False
+        
+        if user['is_active'] != 1:
+            return False
+        
+        password_hash = self._hash_password(password, user['salt'])
+        return password_hash == user['password_hash']
+    
+    def update_last_login(self, username: str) -> bool:
+        """
+        更新用户最后登录时间
+        """
+        from datetime import datetime
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        return self.update(
+            'users',
+            {'last_login': now, 'updated_at': 'CURRENT_TIMESTAMP'},
+            'username = ?',
+            (username,)
+        ) > 0
+    
+    def _create_passwords_table(self):
+        """
+        创建密码管理表
+        """
+        create_table_sql = """
+        CREATE TABLE IF NOT EXISTS passwords (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL,
+            username TEXT,
+            password TEXT NOT NULL,
+            website TEXT,
+            category TEXT DEFAULT '其他',
+            notes TEXT,
+            is_favorite INTEGER DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+        
+        self.execute(create_table_sql)
+        
+        create_index_sql = "CREATE INDEX IF NOT EXISTS idx_passwords_title ON passwords(title)"
+        self.execute(create_index_sql)
+        
+        create_category_index_sql = "CREATE INDEX IF NOT EXISTS idx_passwords_category ON passwords(category)"
+        self.execute(create_category_index_sql)
     
     @contextmanager
     def get_cursor(self):
