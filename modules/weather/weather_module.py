@@ -27,8 +27,241 @@ except ImportError:
     REQUESTS_AVAILABLE = False
 
 
+class RealWeatherFetcher:
+    """真实天气数据获取器（使用wttr.in API）"""
+    
+    WEATHER_CODE_MAP = {
+        113: ("晴", "☀️"),
+        116: ("多云", "⛅"),
+        119: ("阴", "☁️"),
+        122: ("阴", "☁️"),
+        143: ("雾", "🌫️"),
+        176: ("小雨", "🌧️"),
+        179: ("小雪", "❄️"),
+        182: ("小雨", "🌧️"),
+        185: ("小雨", "🌧️"),
+        200: ("雷阵雨", "⛈️"),
+        227: ("小雪", "❄️"),
+        230: ("大雪", "❄️"),
+        248: ("雾", "🌫️"),
+        260: ("雾", "🌫️"),
+        263: ("小雨", "🌧️"),
+        266: ("小雨", "🌧️"),
+        281: ("小雨", "🌧️"),
+        284: ("小雨", "🌧️"),
+        293: ("小雨", "🌧️"),
+        296: ("小雨", "🌧️"),
+        299: ("中雨", "🌧️"),
+        302: ("中雨", "🌧️"),
+        305: ("大雨", "🌧️"),
+        308: ("大雨", "🌧️"),
+        311: ("小雨", "🌧️"),
+        314: ("中雨", "🌧️"),
+        317: ("小雨", "🌧️"),
+        320: ("小雪", "❄️"),
+        323: ("小雪", "❄️"),
+        326: ("小雪", "❄️"),
+        329: ("中雪", "❄️"),
+        332: ("中雪", "❄️"),
+        335: ("大雪", "❄️"),
+        338: ("大雪", "❄️"),
+        350: ("小雨", "🌧️"),
+        353: ("小雨", "🌧️"),
+        356: ("中雨", "🌧️"),
+        359: ("大雨", "🌧️"),
+        362: ("小雨", "🌧️"),
+        365: ("中雨", "🌧️"),
+        368: ("小雪", "❄️"),
+        371: ("中雪", "❄️"),
+        374: ("小雨", "🌧️"),
+        377: ("小雨", "🌧️"),
+        386: ("雷阵雨", "⛈️"),
+        389: ("雷阵雨", "⛈️"),
+        392: ("雷阵雨", "⛈️"),
+        395: ("雷阵雨", "⛈️"),
+    }
+    
+    WIND_DIRECTION_MAP = {
+        "N": "北风",
+        "NE": "东北风",
+        "E": "东风",
+        "SE": "东南风",
+        "S": "南风",
+        "SW": "西南风",
+        "W": "西风",
+        "NW": "西北风",
+        "NNE": "东北偏北风",
+        "ENE": "东北偏东风",
+        "ESE": "东南偏东风",
+        "SSE": "东南偏南风",
+        "SSW": "西南偏南风",
+        "WSW": "西南偏西风",
+        "WNW": "西北偏西风",
+        "NNW": "西北偏北风",
+    }
+    
+    @classmethod
+    def get_weather_condition(cls, weather_code: int) -> tuple:
+        """根据天气代码获取天气状况和图标"""
+        return cls.WEATHER_CODE_MAP.get(weather_code, ("晴", "☀️"))
+    
+    @classmethod
+    def get_wind_direction(cls, wind_dir: str) -> str:
+        """获取中文风向"""
+        return cls.WIND_DIRECTION_MAP.get(wind_dir, wind_dir)
+    
+    @classmethod
+    def fetch_current_weather(cls, city_name: str) -> Dict[str, Any]:
+        """获取当前天气数据"""
+        if not REQUESTS_AVAILABLE:
+            raise RuntimeError("requests库未安装，无法获取真实天气数据")
+        
+        url = f"https://wttr.in/{city_name}?format=j1&m"
+        
+        try:
+            response = requests.get(url, timeout=10, headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+            })
+            response.raise_for_status()
+            data = response.json()
+            
+            current_condition = data.get("current_condition", [{}])[0]
+            weather_list = data.get("weather", [])
+            today_weather = weather_list[0] if weather_list else {}
+            
+            temp_current = int(current_condition.get("temp_C", 0))
+            temp_high = int(today_weather.get("maxtempC", temp_current + 5))
+            temp_low = int(today_weather.get("mintempC", temp_current - 5))
+            
+            weather_code = int(current_condition.get("weatherCode", 113))
+            condition, icon = cls.get_weather_condition(weather_code)
+            
+            humidity = int(current_condition.get("humidity", 50))
+            wind_speed = int(current_condition.get("windspeedKmph", 10))
+            wind_dir = cls.get_wind_direction(current_condition.get("winddir16Point", "N"))
+            visibility = int(current_condition.get("visibility", 10))
+            pressure = int(current_condition.get("pressure", 1013))
+            
+            uv_index = int(current_condition.get("uvIndex", 0)) if current_condition.get("uvIndex") else 0
+            
+            return {
+                "city": city_name,
+                "date": datetime.now().strftime("%Y-%m-%d"),
+                "weekday": ["周一", "周二", "周三", "周四", "周五", "周六", "周日"][datetime.now().weekday()],
+                "condition": condition,
+                "icon": icon,
+                "temp_high": temp_high,
+                "temp_low": temp_low,
+                "temp_current": temp_current,
+                "humidity": humidity,
+                "wind_speed": wind_speed,
+                "wind_direction": wind_dir,
+                "visibility": visibility,
+                "pressure": pressure,
+                "uv_index": uv_index,
+                "aqi": cls._estimate_aqi(humidity, visibility),
+                "is_today": True,
+            }
+            
+        except requests.exceptions.RequestException as e:
+            raise RuntimeError(f"获取天气数据失败: {str(e)}")
+        except (KeyError, ValueError) as e:
+            raise RuntimeError(f"解析天气数据失败: {str(e)}")
+    
+    @classmethod
+    def fetch_forecast(cls, city_name: str, days: int = 7) -> List[Dict[str, Any]]:
+        """获取未来天气预报"""
+        if not REQUESTS_AVAILABLE:
+            raise RuntimeError("requests库未安装，无法获取真实天气数据")
+        
+        url = f"https://wttr.in/{city_name}?format=j1&m"
+        
+        try:
+            response = requests.get(url, timeout=10, headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+            })
+            response.raise_for_status()
+            data = response.json()
+            
+            weather_list = data.get("weather", [])
+            forecast = []
+            today = datetime.now()
+            
+            for i in range(min(days, len(weather_list))):
+                weather_data = weather_list[i]
+                date = today + timedelta(days=i)
+                
+                max_temp = int(weather_data.get("maxtempC", 20))
+                min_temp = int(weather_data.get("mintempC", 10))
+                
+                hourly = weather_data.get("hourly", [])
+                if hourly:
+                    midday_hour = hourly[len(hourly) // 2] if len(hourly) > 0 else {}
+                    weather_code = int(midday_hour.get("weatherCode", 113))
+                    humidity = int(midday_hour.get("humidity", 50))
+                    wind_speed = int(midday_hour.get("windspeedKmph", 10))
+                    wind_dir = cls.get_wind_direction(midday_hour.get("winddir16Point", "N"))
+                    visibility = int(midday_hour.get("visibility", 10))
+                    pressure = int(midday_hour.get("pressure", 1013))
+                    uv_index = int(midday_hour.get("uvIndex", 0)) if midday_hour.get("uvIndex") else 0
+                else:
+                    weather_code = 113
+                    humidity = 50
+                    wind_speed = 10
+                    wind_dir = "N"
+                    visibility = 10
+                    pressure = 1013
+                    uv_index = 0
+                
+                condition, icon = cls.get_weather_condition(weather_code)
+                
+                weather_dict = {
+                    "city": city_name,
+                    "date": date.strftime("%Y-%m-%d"),
+                    "weekday": ["周一", "周二", "周三", "周四", "周五", "周六", "周日"][date.weekday()],
+                    "condition": condition,
+                    "icon": icon,
+                    "temp_high": max_temp,
+                    "temp_low": min_temp,
+                    "temp_current": (max_temp + min_temp) // 2,
+                    "humidity": humidity,
+                    "wind_speed": wind_speed,
+                    "wind_direction": wind_dir,
+                    "visibility": visibility,
+                    "pressure": pressure,
+                    "uv_index": uv_index,
+                    "aqi": cls._estimate_aqi(humidity, visibility),
+                }
+                
+                if i == 0:
+                    weather_dict["is_today"] = True
+                elif i == 1:
+                    weather_dict["is_tomorrow"] = True
+                
+                forecast.append(weather_dict)
+            
+            return forecast
+            
+        except requests.exceptions.RequestException as e:
+            raise RuntimeError(f"获取天气预报失败: {str(e)}")
+        except (KeyError, ValueError) as e:
+            raise RuntimeError(f"解析天气预报失败: {str(e)}")
+    
+    @classmethod
+    def _estimate_aqi(cls, humidity: int, visibility: int) -> int:
+        """根据湿度和能见度估算空气质量指数"""
+        if visibility >= 20 and humidity <= 60:
+            return random.randint(20, 50)
+        elif visibility >= 10 and humidity <= 70:
+            return random.randint(50, 100)
+        elif visibility >= 5 and humidity <= 80:
+            return random.randint(100, 150)
+        else:
+            return random.randint(150, 200)
+
+
 class WeatherDataGenerator:
-    """天气数据生成器（模拟数据）"""
+    """天气数据生成器（模拟数据 - 作为备用方案）"""
     
     WEATHER_CONDITIONS = [
         ("晴", "☀️", 0.3),
@@ -311,26 +544,48 @@ class WeatherModuleWorker(QThread):
     data_ready = pyqtSignal(dict)
     error_occurred = pyqtSignal(str)
     
-    def __init__(self, city_name: str, data_type: str = "forecast", days: int = 7):
+    def __init__(self, city_name: str, data_type: str = "forecast", days: int = 7, use_real_api: bool = True):
         super().__init__()
         self.city_name = city_name
         self.data_type = data_type
         self.days = days
+        self.use_real_api = use_real_api
     
     def run(self):
         try:
-            if self.data_type == "forecast":
-                data = WeatherDataGenerator.generate_forecast(self.city_name, self.days)
-            elif self.data_type == "history":
-                data = WeatherDataGenerator.generate_history(self.city_name, self.days)
+            data = []
+            use_fallback = False
+            error_msg = ""
+            
+            if self.use_real_api and REQUESTS_AVAILABLE:
+                try:
+                    if self.data_type == "forecast":
+                        data = RealWeatherFetcher.fetch_forecast(self.city_name, self.days)
+                    elif self.data_type == "history":
+                        data = WeatherDataGenerator.generate_history(self.city_name, self.days)
+                    else:
+                        data = []
+                except Exception as e:
+                    error_msg = str(e)
+                    use_fallback = True
             else:
-                data = []
+                use_fallback = True
+            
+            if use_fallback:
+                if self.data_type == "forecast":
+                    data = WeatherDataGenerator.generate_forecast(self.city_name, self.days)
+                elif self.data_type == "history":
+                    data = WeatherDataGenerator.generate_history(self.city_name, self.days)
+                else:
+                    data = []
             
             self.data_ready.emit({
                 "success": True,
                 "data": data,
                 "city": self.city_name,
-                "type": self.data_type
+                "type": self.data_type,
+                "used_real_api": not use_fallback and self.use_real_api and REQUESTS_AVAILABLE,
+                "fallback_message": error_msg if use_fallback else None
             })
         except Exception as e:
             self.error_occurred.emit(str(e))
@@ -345,6 +600,8 @@ class WeatherMainWidget(QWidget):
         self._forecast_data = []
         self._history_data = []
         self._worker = None
+        self._data_source_label = None
+        self._last_update_label = None
         self._init_ui()
     
     def _init_ui(self):
@@ -355,7 +612,7 @@ class WeatherMainWidget(QWidget):
         header_layout = QHBoxLayout()
         header_layout.setSpacing(10)
         
-        title_label = QLabel("天气查询")
+        title_label = QLabel("🌤️ 天气查询")
         title_label.setFont(QFont("Microsoft YaHei", 20, QFont.Weight.Bold))
         title_label.setStyleSheet("color: #1565C0;")
         header_layout.addWidget(title_label)
@@ -387,13 +644,14 @@ class WeatherMainWidget(QWidget):
             }
         """)
         
-        popular_cities = ["北京", "上海", "广州", "深圳", "杭州", "南京", "成都", "武汉", "西安", "重庆"]
+        popular_cities = ["北京", "上海", "广州", "深圳", "杭州", "南京", "成都", "武汉", "西安", "重庆", "天津", "苏州", "长沙", "郑州", "东莞", "青岛", "沈阳", "宁波", "昆明"]
         self.city_combo.addItems(popular_cities)
         self.city_combo.setCurrentText("北京")
+        self.city_combo.lineEdit().setPlaceholderText("输入城市名称...")
         header_layout.addWidget(self.city_combo)
         
-        self.search_btn = QPushButton("查询")
-        self.search_btn.setMinimumWidth(80)
+        self.search_btn = QPushButton("🔍 查询")
+        self.search_btn.setMinimumWidth(90)
         self.search_btn.setFont(QFont("Microsoft YaHei", 11, QFont.Weight.Bold))
         self.search_btn.setStyleSheet("""
             QPushButton {
@@ -409,11 +667,59 @@ class WeatherMainWidget(QWidget):
             QPushButton:pressed {
                 background-color: #0D47A1;
             }
+            QPushButton:disabled {
+                background-color: #90CAF9;
+            }
         """)
         self.search_btn.clicked.connect(self._on_search)
         header_layout.addWidget(self.search_btn)
         
+        self.refresh_btn = QPushButton("🔄 刷新")
+        self.refresh_btn.setMinimumWidth(80)
+        self.refresh_btn.setFont(QFont("Microsoft YaHei", 11))
+        self.refresh_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #4CAF50;
+                color: white;
+                border: none;
+                padding: 8px 16px;
+                border-radius: 4px;
+            }
+            QPushButton:hover {
+                background-color: #43A047;
+            }
+            QPushButton:pressed {
+                background-color: #2E7D32;
+            }
+            QPushButton:disabled {
+                background-color: #A5D6A7;
+            }
+        """)
+        self.refresh_btn.clicked.connect(self._on_refresh)
+        header_layout.addWidget(self.refresh_btn)
+        
         main_layout.addLayout(header_layout)
+        
+        info_bar_layout = QHBoxLayout()
+        info_bar_layout.setSpacing(15)
+        
+        self._data_source_label = QLabel("📡 数据来源: 加载中...")
+        self._data_source_label.setFont(QFont("Microsoft YaHei", 10))
+        self._data_source_label.setStyleSheet("color: #666666;")
+        info_bar_layout.addWidget(self._data_source_label)
+        
+        self._last_update_label = QLabel("⏰ 更新时间: --")
+        self._last_update_label.setFont(QFont("Microsoft YaHei", 10))
+        self._last_update_label.setStyleSheet("color: #666666;")
+        info_bar_layout.addWidget(self._last_update_label)
+        
+        info_bar_layout.addStretch()
+        
+        self._api_status_label = QLabel("")
+        self._api_status_label.setFont(QFont("Microsoft YaHei", 10, QFont.Weight.Bold))
+        info_bar_layout.addWidget(self._api_status_label)
+        
+        main_layout.addLayout(info_bar_layout)
         
         self.tab_widget = QTabWidget()
         self.tab_widget.setFont(QFont("Microsoft YaHei", 11))
@@ -592,10 +898,18 @@ class WeatherMainWidget(QWidget):
         self._current_city = city
         self._load_weather_data()
     
+    def _on_refresh(self):
+        """刷新按钮点击事件"""
+        self._load_weather_data()
+    
     def _load_weather_data(self):
         """加载天气数据"""
         self.search_btn.setEnabled(False)
         self.search_btn.setText("查询中...")
+        self.refresh_btn.setEnabled(False)
+        self._update_data_source_info("📡 数据来源: 正在查询...", "#FF9800")
+        self._api_status_label.setText("🔄 连接中...")
+        self._api_status_label.setStyleSheet("color: #FF9800;")
         
         self._worker = WeatherModuleWorker(self._current_city, "forecast", 7)
         self._worker.data_ready.connect(self._on_forecast_data_ready)
@@ -615,10 +929,40 @@ class WeatherMainWidget(QWidget):
         self._worker.error_occurred.connect(self._on_error)
         self._worker.start()
     
+    def _update_data_source_info(self, text: str, color: str = "#666666"):
+        """更新数据来源信息显示"""
+        if self._data_source_label:
+            self._data_source_label.setText(text)
+            self._data_source_label.setStyleSheet(f"color: {color};")
+    
+    def _update_last_update_time(self):
+        """更新最后更新时间"""
+        if self._last_update_label:
+            now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            self._last_update_label.setText(f"⏰ 更新时间: {now}")
+    
     def _on_forecast_data_ready(self, result: Dict[str, Any]):
         """预报数据准备完成"""
         self.search_btn.setEnabled(True)
-        self.search_btn.setText("查询")
+        self.search_btn.setText("🔍 查询")
+        self.refresh_btn.setEnabled(True)
+        
+        used_real_api = result.get("used_real_api", False)
+        fallback_message = result.get("fallback_message")
+        
+        if used_real_api:
+            self._update_data_source_info("📡 数据来源: 实时API (wttr.in)", "#4CAF50")
+            self._api_status_label.setText("✅ 在线")
+            self._api_status_label.setStyleSheet("color: #4CAF50;")
+        else:
+            if fallback_message:
+                self._update_data_source_info(f"⚠️ 数据来源: 本地模拟 (API错误: {fallback_message})", "#FF9800")
+            else:
+                self._update_data_source_info("⚠️ 数据来源: 本地模拟", "#FF9800")
+            self._api_status_label.setText("❌ 离线模式")
+            self._api_status_label.setStyleSheet("color: #F44336;")
+        
+        self._update_last_update_time()
         
         if result.get("success"):
             self._forecast_data = result.get("data", [])
@@ -637,9 +981,14 @@ class WeatherMainWidget(QWidget):
     def _on_error(self, error_msg: str):
         """错误处理"""
         self.search_btn.setEnabled(True)
-        self.search_btn.setText("查询")
+        self.search_btn.setText("🔍 查询")
+        self.refresh_btn.setEnabled(True)
         self.refresh_history_btn.setEnabled(True)
         self.refresh_history_btn.setText("刷新历史数据")
+        
+        self._update_data_source_info(f"❌ 获取数据失败: {error_msg}", "#F44336")
+        self._api_status_label.setText("❌ 错误")
+        self._api_status_label.setStyleSheet("color: #F44336;")
         
         QMessageBox.critical(self, "错误", f"获取天气数据失败: {error_msg}")
     
