@@ -5,18 +5,16 @@
 生活工具分类下的汇率换算功能
 """
 
-import json
 import os
 import urllib3
 from datetime import datetime
 from typing import Dict, List, Any, Optional
 
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
-                             QLabel, QLineEdit, QComboBox, QGroupBox, QGridLayout,
-                             QScrollArea, QFrame, QMessageBox, QTabWidget, QSpacerItem,
-                             QSizePolicy, QListWidget, QListWidgetItem, QSplitter)
-from PyQt6.QtCore import Qt, QSize, pyqtSignal, QThread, QTimer
-from PyQt6.QtGui import QFont, QColor, QLinearGradient, QPainter, QPen, QPixmap
+                             QLabel, QLineEdit, QComboBox, QGroupBox, QScrollArea,
+                             QFrame, QMessageBox, QTabWidget, QListWidget, QListWidgetItem)
+from PyQt6.QtCore import Qt, pyqtSignal, QThread, QMutex
+from PyQt6.QtGui import QFont
 
 from modules.module_manager import BaseModule, ModuleCategory
 from database.database_manager import DatabaseManager
@@ -30,15 +28,6 @@ except ImportError:
     REQUESTS_AVAILABLE = False
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
-NO_PROXY_ENV = {
-    'http_proxy': '',
-    'https_proxy': '',
-    'HTTP_PROXY': '',
-    'HTTPS_PROXY': '',
-    'no_proxy': '*',
-    'NO_PROXY': '*',
-}
 
 CURRENCIES = {
     "CNY": {"name": "人民币", "symbol": "¥", "flag": "🇨🇳"},
@@ -125,7 +114,7 @@ class ExchangeRateFetcher:
                 }
             },
             {
-                "name": "Open Exchange Rates (fallback)",
+                "name": "Open Exchange Rates",
                 "url": f"https://open.er-api.com/v6/latest/{base_currency}",
                 "parser": lambda data: {
                     "base": data.get("base_code", base_currency),
@@ -148,7 +137,7 @@ class ExchangeRateFetcher:
                 response.raise_for_status()
                 data = response.json()
                 
-                if data.get("result") == "success" or data.get("result") == "success":
+                if data.get("result") == "success":
                     parsed = source["parser"](data)
                     if parsed["rates"]:
                         return {
@@ -166,43 +155,6 @@ class ExchangeRateFetcher:
                     session.close()
         
         raise RuntimeError("所有汇率API都失败了: " + "; ".join(errors))
-    
-    @classmethod
-    def fetch_convert(cls, from_currency: str, to_currency: str, amount: float = 1.0) -> Dict[str, Any]:
-        """转换货币"""
-        if not REQUESTS_AVAILABLE:
-            raise RuntimeError("requests库未安装")
-        
-        url = f"https://v6.exchangerate-api.com/v6/d850c7a92f1a4b3c2d1e0f9/pair/{from_currency}/{to_currency}/{amount}"
-        
-        session = None
-        try:
-            session = create_requests_session()
-            response = session.get(url, timeout=15, headers={
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-                "Accept": "application/json",
-            }, verify=False)
-            response.raise_for_status()
-            data = response.json()
-            
-            if data.get("result") == "success":
-                return {
-                    "success": True,
-                    "from": from_currency,
-                    "to": to_currency,
-                    "amount": amount,
-                    "rate": data.get("conversion_rate", 0),
-                    "result": data.get("conversion_result", 0),
-                    "timestamp": data.get("time_last_update_unix", datetime.now().timestamp())
-                }
-            else:
-                raise RuntimeError(f"API返回错误: {data.get('error-type', '未知错误')}")
-                
-        except Exception as e:
-            raise RuntimeError(f"汇率转换失败: {str(e)}")
-        finally:
-            if session:
-                session.close()
 
 
 class ExchangeRateGenerator:
@@ -261,24 +213,6 @@ class ExchangeRateGenerator:
             "source": "模拟数据",
             "is_fallback": True
         }
-    
-    @classmethod
-    def convert(cls, from_currency: str, to_currency: str, amount: float) -> Dict[str, Any]:
-        """模拟转换货币"""
-        rates = cls.generate_rates(from_currency)
-        rate = rates["rates"].get(to_currency, 1.0)
-        
-        return {
-            "success": True,
-            "from": from_currency,
-            "to": to_currency,
-            "amount": amount,
-            "rate": rate,
-            "result": amount * rate,
-            "timestamp": datetime.now().timestamp(),
-            "source": "模拟数据",
-            "is_fallback": True
-        }
 
 
 class CurrencyConverterWorker(QThread):
@@ -287,60 +221,71 @@ class CurrencyConverterWorker(QThread):
     data_ready = pyqtSignal(dict)
     error_occurred = pyqtSignal(str)
     
-    def __init__(self, task_type: str, **kwargs):
+    def __init__(self, base_currency: str):
         super().__init__()
-        self.task_type = task_type
-        self.kwargs = kwargs
+        self.base_currency = base_currency
+        self._is_running = True
+        self._mutex = QMutex()
+    
+    def stop(self):
+        """停止线程"""
+        self._mutex.lock()
+        self._is_running = False
+        self._mutex.unlock()
     
     def run(self):
         try:
-            if self.task_type == "fetch_rates":
-                base_currency = self.kwargs.get("base_currency", "USD")
-                try:
-                    if REQUESTS_AVAILABLE:
-                        data = ExchangeRateFetcher.fetch_latest_rates(base_currency)
-                    else:
-                        data = ExchangeRateGenerator.generate_rates(base_currency)
-                except Exception:
-                    data = ExchangeRateGenerator.generate_rates(base_currency)
-                
+            data = None
+            try:
+                if REQUESTS_AVAILABLE:
+                    data = ExchangeRateFetcher.fetch_latest_rates(self.base_currency)
+                else:
+                    data = ExchangeRateGenerator.generate_rates(self.base_currency)
+            except Exception:
+                data = ExchangeRateGenerator.generate_rates(self.base_currency)
+            
+            self._mutex.lock()
+            if self._is_running:
                 self.data_ready.emit(data)
-                
-            elif self.task_type == "convert":
-                from_currency = self.kwargs.get("from_currency", "USD")
-                to_currency = self.kwargs.get("to_currency", "CNY")
-                amount = self.kwargs.get("amount", 1.0)
-                
-                try:
-                    if REQUESTS_AVAILABLE:
-                        data = ExchangeRateFetcher.fetch_convert(from_currency, to_currency, amount)
-                    else:
-                        data = ExchangeRateGenerator.convert(from_currency, to_currency, amount)
-                except Exception:
-                    data = ExchangeRateGenerator.convert(from_currency, to_currency, amount)
-                
-                self.data_ready.emit(data)
+            self._mutex.unlock()
                 
         except Exception as e:
-            self.error_occurred.emit(str(e))
+            self._mutex.lock()
+            if self._is_running:
+                self.error_occurred.emit(str(e))
+            self._mutex.unlock()
 
 
 class CurrencyCard(QFrame):
     """货币卡片组件"""
     
-    clicked = pyqtSignal(str)
+    favorite_clicked = pyqtSignal(str)
+    remove_clicked = pyqtSignal(str)
     
-    def __init__(self, currency_code: str, amount: float = 0.0, is_selected: bool = False, parent=None):
+    def __init__(self, currency_code: str, rate: float = 0.0, base_currency: str = "USD", 
+                 is_favorite: bool = False, show_remove: bool = False, parent=None):
         super().__init__(parent)
         self.currency_code = currency_code
-        self.amount = amount
-        self.is_selected = is_selected
+        self.rate = rate
+        self.base_currency = base_currency
+        self.is_favorite = is_favorite
+        self.show_remove = show_remove
         self._init_ui()
     
     def _init_ui(self):
+        self.setMinimumHeight(60)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.setMinimumHeight(70)
-        self._update_style()
+        self.setStyleSheet("""
+            QFrame {
+                background-color: white;
+                border-radius: 8px;
+                border: 1px solid #e0e0e0;
+            }
+            QFrame:hover {
+                border: 1px solid #1565C0;
+                background-color: #FAFAFA;
+            }
+        """)
         
         layout = QHBoxLayout(self)
         layout.setContentsMargins(15, 10, 15, 10)
@@ -352,82 +297,82 @@ class CurrencyCard(QFrame):
         symbol = currency.get("symbol", "")
         
         flag_label = QLabel(flag)
-        flag_label.setFont(QFont("Microsoft YaHei", 20))
+        flag_label.setFont(QFont("Microsoft YaHei", 18))
         layout.addWidget(flag_label)
         
         info_layout = QVBoxLayout()
         info_layout.setSpacing(2)
         
         code_label = QLabel(self.currency_code)
-        code_label.setFont(QFont("Microsoft YaHei", 12, QFont.Weight.Bold))
-        code_label.setStyleSheet(f"color: {'#1565C0' if self.is_selected else '#333333'};")
+        code_label.setFont(QFont("Microsoft YaHei", 11, QFont.Weight.Bold))
+        code_label.setStyleSheet("color: #333333;")
         info_layout.addWidget(code_label)
         
         name_label = QLabel(name)
-        name_label.setFont(QFont("Microsoft YaHei", 10))
+        name_label.setFont(QFont("Microsoft YaHei", 9))
         name_label.setStyleSheet("color: #666666;")
         info_layout.addWidget(name_label)
         
         layout.addLayout(info_layout, 1)
         
-        amount_layout = QVBoxLayout()
-        amount_layout.setSpacing(2)
-        amount_layout.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        if self.rate > 0:
+            rate_layout = QVBoxLayout()
+            rate_layout.setSpacing(2)
+            rate_layout.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            
+            rate_text = f"1 {self.base_currency} = {self.rate:.4f} {self.currency_code}"
+            rate_label = QLabel(rate_text)
+            rate_label.setFont(QFont("Microsoft YaHei", 10, QFont.Weight.Bold))
+            rate_label.setStyleSheet("color: #1565C0;")
+            rate_label.setAlignment(Qt.AlignmentFlag.AlignRight)
+            rate_layout.addWidget(rate_label)
+            
+            if self.rate > 0:
+                inverse_text = f"1 {self.currency_code} = {(1.0/self.rate):.6f} {self.base_currency}"
+                inverse_label = QLabel(inverse_text)
+                inverse_label.setFont(QFont("Microsoft YaHei", 8))
+                inverse_label.setStyleSheet("color: #666666;")
+                inverse_label.setAlignment(Qt.AlignmentFlag.AlignRight)
+                rate_layout.addWidget(inverse_label)
+            
+            layout.addLayout(rate_layout)
         
-        if self.amount > 0:
-            amount_text = f"{symbol} {self.amount:,.2f}"
-            amount_label = QLabel(amount_text)
-            amount_label.setFont(QFont("Microsoft YaHei", 14, QFont.Weight.Bold))
-            amount_label.setStyleSheet(f"color: {'#1565C0' if self.is_selected else '#333333'};")
-            amount_label.setAlignment(Qt.AlignmentFlag.AlignRight)
-            amount_layout.addWidget(amount_label)
-        
-        layout.addLayout(amount_layout)
-    
-    def _update_style(self):
-        if self.is_selected:
-            self.setStyleSheet("""
-                QFrame {
-                    background-color: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                        stop:0 #E3F2FD, stop:1 #BBDEFB);
-                    border-radius: 10px;
-                    border: 2px solid #1565C0;
+        if self.show_remove:
+            remove_btn = QPushButton("🗑️")
+            remove_btn.setMaximumWidth(40)
+            remove_btn.setStyleSheet("""
+                QPushButton {
+                    background-color: transparent;
+                    border: none;
+                    font-size: 16px;
                 }
-                QFrame:hover {
-                    background-color: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                        stop:0 #BBDEFB, stop:1 #90CAF9);
+                QPushButton:hover {
+                    background-color: #FFEBEE;
+                    border-radius: 4px;
                 }
             """)
+            remove_btn.clicked.connect(lambda: self.remove_clicked.emit(self.currency_code))
+            layout.addWidget(remove_btn)
         else:
-            self.setStyleSheet("""
-                QFrame {
-                    background-color: white;
-                    border-radius: 10px;
-                    border: 1px solid #e0e0e0;
+            if self.is_favorite:
+                fav_btn = QPushButton("⭐")
+            else:
+                fav_btn = QPushButton("☆")
+            
+            fav_btn.setMaximumWidth(40)
+            fav_btn.setStyleSheet("""
+                QPushButton {
+                    background-color: transparent;
+                    border: none;
+                    font-size: 16px;
                 }
-                QFrame:hover {
-                    border: 1px solid #1565C0;
-                    background-color: #FAFAFA;
+                QPushButton:hover {
+                    background-color: #FFF8E1;
+                    border-radius: 4px;
                 }
             """)
-    
-    def set_selected(self, selected: bool):
-        self.is_selected = selected
-        self._update_style()
-        self.update()
-    
-    def set_amount(self, amount: float):
-        self.amount = amount
-        for i in reversed(range(self.layout().count())):
-            item = self.layout().itemAt(i)
-            if item and item.widget():
-                item.widget().deleteLater()
-        self._init_ui()
-    
-    def mousePressEvent(self, event):
-        if event.button() == Qt.MouseButton.LeftButton:
-            self.clicked.emit(self.currency_code)
-        super().mousePressEvent(event)
+            fav_btn.clicked.connect(lambda: self.favorite_clicked.emit(self.currency_code))
+            layout.addWidget(fav_btn)
 
 
 class CurrencyConverterMainWidget(QWidget):
@@ -441,7 +386,9 @@ class CurrencyConverterMainWidget(QWidget):
         self._target_currency = "USD"
         self._amount = 1.0
         self._worker = None
+        self._worker_mutex = QMutex()
         self._favorite_currencies = self._load_favorites()
+        self._is_loading = False
         self._init_ui()
         self._create_tables()
         self._load_rates()
@@ -555,27 +502,6 @@ class CurrencyConverterMainWidget(QWidget):
         self._refresh_btn.clicked.connect(self._on_refresh_rates)
         header_layout.addWidget(self._refresh_btn)
         
-        self._swap_btn = QPushButton("⇆ 交换")
-        self._swap_btn.setMinimumWidth(80)
-        self._swap_btn.setFont(QFont("Microsoft YaHei", 11))
-        self._swap_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #FF9800;
-                color: white;
-                border: none;
-                padding: 8px 16px;
-                border-radius: 4px;
-            }
-            QPushButton:hover {
-                background-color: #F57C00;
-            }
-            QPushButton:pressed {
-                background-color: #EF6C00;
-            }
-        """)
-        self._swap_btn.clicked.connect(self._on_swap_currencies)
-        header_layout.addWidget(self._swap_btn)
-        
         main_layout.addLayout(header_layout)
         
         info_layout = QHBoxLayout()
@@ -608,7 +534,7 @@ class CurrencyConverterMainWidget(QWidget):
                 border-bottom: none;
                 border-top-left-radius: 4px;
                 border-top-right-radius: 4px;
-                padding: 10px 25px;
+                padding: 10px 20px;
                 margin-right: 2px;
             }
             QTabBar::tab:selected {
@@ -626,6 +552,9 @@ class CurrencyConverterMainWidget(QWidget):
         
         rates_tab = self._create_rates_tab()
         self.tab_widget.addTab(rates_tab, "📊 汇率列表")
+        
+        favorites_tab = self._create_favorites_tab()
+        self.tab_widget.addTab(favorites_tab, "⭐ 我的收藏")
         
         history_tab = self._create_history_tab()
         self.tab_widget.addTab(history_tab, "📜 历史记录")
@@ -761,21 +690,6 @@ class CurrencyConverterMainWidget(QWidget):
             QComboBox:focus {
                 border-color: #1565C0;
             }
-            QComboBox::drop-down {
-                subcontrol-origin: padding;
-                subcontrol-position: center right;
-                width: 30px;
-                border-left: 1px solid #ddd;
-                border-top-right-radius: 8px;
-                border-bottom-right-radius: 8px;
-                background-color: #f5f5f5;
-            }
-            QComboBox::down-arrow {
-                border-left: 6px solid transparent;
-                border-right: 6px solid transparent;
-                border-top: 8px solid #666666;
-                margin-right: 5px;
-            }
         """)
         self._populate_currency_combo(self._from_combo)
         self._from_combo.setCurrentText(ExchangeRateFetcher.format_currency_display("CNY"))
@@ -825,21 +739,6 @@ class CurrencyConverterMainWidget(QWidget):
             }
             QComboBox:focus {
                 border-color: #E91E63;
-            }
-            QComboBox::drop-down {
-                subcontrol-origin: padding;
-                subcontrol-position: center right;
-                width: 30px;
-                border-left: 1px solid #ddd;
-                border-top-right-radius: 8px;
-                border-bottom-right-radius: 8px;
-                background-color: #f5f5f5;
-            }
-            QComboBox::down-arrow {
-                border-left: 6px solid transparent;
-                border-right: 6px solid transparent;
-                border-top: 8px solid #666666;
-                margin-right: 5px;
             }
         """)
         self._populate_currency_combo(self._to_combo)
@@ -1015,9 +914,6 @@ class CurrencyConverterMainWidget(QWidget):
                 border-radius: 5px;
                 min-height: 20px;
             }
-            QScrollBar::handle:vertical:hover {
-                background-color: #a0a0a0;
-            }
         """)
         
         self._rates_container = QWidget()
@@ -1027,6 +923,49 @@ class CurrencyConverterMainWidget(QWidget):
         
         self._rates_scroll.setWidget(self._rates_container)
         layout.addWidget(self._rates_scroll, 1)
+        
+        return widget
+    
+    def _create_favorites_tab(self) -> QWidget:
+        """创建收藏夹标签页"""
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        layout.setContentsMargins(15, 15, 15, 15)
+        layout.setSpacing(15)
+        
+        info_label = QLabel("⭐ 我的收藏 - 常用货币会优先显示在下拉列表中")
+        info_label.setFont(QFont("Microsoft YaHei", 11))
+        info_label.setStyleSheet("color: #666666; padding: 5px;")
+        layout.addWidget(info_label)
+        
+        self._favorites_scroll = QScrollArea()
+        self._favorites_scroll.setWidgetResizable(True)
+        self._favorites_scroll.setStyleSheet("""
+            QScrollArea {
+                border: none;
+                background-color: transparent;
+            }
+            QScrollBar:vertical {
+                background-color: #f5f5f5;
+                width: 10px;
+                border-radius: 5px;
+            }
+            QScrollBar::handle:vertical {
+                background-color: #c0c0c0;
+                border-radius: 5px;
+                min-height: 20px;
+            }
+        """)
+        
+        self._favorites_container = QWidget()
+        self._favorites_container_layout = QVBoxLayout(self._favorites_container)
+        self._favorites_container_layout.setContentsMargins(5, 5, 5, 5)
+        self._favorites_container_layout.setSpacing(10)
+        
+        self._favorites_scroll.setWidget(self._favorites_container)
+        layout.addWidget(self._favorites_scroll, 1)
+        
+        self._refresh_favorites_list()
         
         return widget
     
@@ -1091,29 +1030,58 @@ class CurrencyConverterMainWidget(QWidget):
     
     def _populate_currency_combo(self, combo: QComboBox):
         """填充货币下拉框"""
+        combo.blockSignals(True)
         combo.clear()
         
         for code in self._favorite_currencies:
             if code in CURRENCIES:
                 combo.addItem(ExchangeRateFetcher.format_currency_display(code), code)
         
-        combo.insertSeparator(len(self._favorite_currencies))
+        if self._favorite_currencies:
+            combo.insertSeparator(len(self._favorite_currencies))
         
         for code in sorted(CURRENCIES.keys()):
             if code not in self._favorite_currencies:
                 combo.addItem(ExchangeRateFetcher.format_currency_display(code), code)
+        
+        combo.blockSignals(False)
+    
+    def _stop_worker(self):
+        """停止当前的worker线程"""
+        self._worker_mutex.lock()
+        if self._worker is not None and self._worker.isRunning():
+            self._worker.stop()
+            self._worker.wait(3000)
+            self._worker = None
+        self._worker_mutex.unlock()
     
     def _load_rates(self):
         """加载汇率数据"""
+        if self._is_loading:
+            return
+        
+        self._is_loading = True
         self._refresh_btn.setEnabled(False)
         self._refresh_btn.setText("加载中...")
         self._convert_btn.setEnabled(False)
         self._data_source_label.setText("📡 数据来源: 正在查询...")
         
-        self._worker = CurrencyConverterWorker("fetch_rates", base_currency=self._base_currency)
+        self._stop_worker()
+        
+        self._worker = CurrencyConverterWorker(self._base_currency)
         self._worker.data_ready.connect(self._on_rates_ready)
         self._worker.error_occurred.connect(self._on_error)
+        self._worker.finished.connect(self._on_worker_finished)
         self._worker.start()
+    
+    def _on_worker_finished(self):
+        """worker线程完成"""
+        self._is_loading = False
+        self._worker_mutex.lock()
+        if self._worker is not None:
+            self._worker.deleteLater()
+            self._worker = None
+        self._worker_mutex.unlock()
     
     def _on_rates_ready(self, data: Dict[str, Any]):
         """汇率数据准备就绪"""
@@ -1159,6 +1127,9 @@ class CurrencyConverterMainWidget(QWidget):
         from_data = self._from_combo.itemData(from_index)
         to_data = self._to_combo.itemData(to_index)
         
+        self._from_combo.blockSignals(True)
+        self._to_combo.blockSignals(True)
+        
         for i in range(self._from_combo.count()):
             if self._from_combo.itemData(i) == to_data:
                 self._from_combo.setCurrentIndex(i)
@@ -1168,6 +1139,17 @@ class CurrencyConverterMainWidget(QWidget):
             if self._to_combo.itemData(i) == from_data:
                 self._to_combo.setCurrentIndex(i)
                 break
+        
+        self._from_combo.blockSignals(False)
+        self._to_combo.blockSignals(False)
+        
+        if from_data:
+            self._base_currency = from_data
+        if to_data:
+            self._target_currency = to_data
+        
+        self._perform_conversion()
+        self._update_favorite_button()
     
     def _on_from_currency_changed(self, index: int):
         """源货币改变"""
@@ -1291,16 +1273,37 @@ class CurrencyConverterMainWidget(QWidget):
                     continue
             
             rate = self._current_rates.get(code, 0)
-            if rate > 0:
-                inverse_rate = 1.0 / rate
-            else:
-                inverse_rate = 0
+            is_favorite = code in self._favorite_currencies
             
-            card = CurrencyCard(code, rate)
-            card.setToolTip(f"1 {self._base_currency} = {rate:.4f} {code}\n1 {code} = {inverse_rate:.6f} {self._base_currency}")
+            card = CurrencyCard(code, rate, self._base_currency, is_favorite)
+            card.favorite_clicked.connect(self._on_favorite_clicked_from_list)
             self._rates_container_layout.addWidget(card)
         
         self._rates_container_layout.addStretch()
+    
+    def _refresh_favorites_list(self):
+        """刷新收藏列表"""
+        for i in reversed(range(self._favorites_container_layout.count())):
+            item = self._favorites_container_layout.itemAt(i)
+            if item and item.widget():
+                item.widget().deleteLater()
+        
+        if not self._favorite_currencies:
+            no_data_label = QLabel("暂无收藏的货币\n\n在汇率列表中点击 ☆ 按钮添加收藏")
+            no_data_label.setFont(QFont("Microsoft YaHei", 12))
+            no_data_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            no_data_label.setStyleSheet("color: #999999; padding: 50px;")
+            self._favorites_container_layout.addWidget(no_data_label)
+            return
+        
+        for code in self._favorite_currencies:
+            if code in CURRENCIES:
+                rate = self._current_rates.get(code, 0)
+                card = CurrencyCard(code, rate, self._base_currency, True, show_remove=True)
+                card.remove_clicked.connect(self._on_remove_favorite)
+                self._favorites_container_layout.addWidget(card)
+        
+        self._favorites_container_layout.addStretch()
     
     def _filter_rates(self):
         """过滤汇率列表"""
@@ -1347,10 +1350,16 @@ class CurrencyConverterMainWidget(QWidget):
             self._save_favorite(self._target_currency)
         
         self._update_favorite_button()
+        self._refresh_favorites_list()
+        self._update_rates_list()
         
         current_from = self._from_combo.currentData()
         current_to = self._to_combo.currentData()
         current_base = self._base_combo.currentData()
+        
+        self._from_combo.blockSignals(True)
+        self._to_combo.blockSignals(True)
+        self._base_combo.blockSignals(True)
         
         self._populate_currency_combo(self._from_combo)
         self._populate_currency_combo(self._to_combo)
@@ -1370,6 +1379,100 @@ class CurrencyConverterMainWidget(QWidget):
             if self._base_combo.itemData(i) == current_base:
                 self._base_combo.setCurrentIndex(i)
                 break
+        
+        self._from_combo.blockSignals(False)
+        self._to_combo.blockSignals(False)
+        self._base_combo.blockSignals(False)
+    
+    def _on_favorite_clicked_from_list(self, code: str):
+        """从汇率列表中点击收藏"""
+        if code in self._favorite_currencies:
+            self._remove_favorite(code)
+        else:
+            self._save_favorite(code)
+        
+        self._update_rates_list()
+        self._refresh_favorites_list()
+        
+        current_from = self._from_combo.currentData()
+        current_to = self._to_combo.currentData()
+        current_base = self._base_combo.currentData()
+        
+        self._from_combo.blockSignals(True)
+        self._to_combo.blockSignals(True)
+        self._base_combo.blockSignals(True)
+        
+        self._populate_currency_combo(self._from_combo)
+        self._populate_currency_combo(self._to_combo)
+        self._populate_currency_combo(self._base_combo)
+        
+        for i in range(self._from_combo.count()):
+            if self._from_combo.itemData(i) == current_from:
+                self._from_combo.setCurrentIndex(i)
+                break
+        
+        for i in range(self._to_combo.count()):
+            if self._to_combo.itemData(i) == current_to:
+                self._to_combo.setCurrentIndex(i)
+                break
+        
+        for i in range(self._base_combo.count()):
+            if self._base_combo.itemData(i) == current_base:
+                self._base_combo.setCurrentIndex(i)
+                break
+        
+        self._from_combo.blockSignals(False)
+        self._to_combo.blockSignals(False)
+        self._base_combo.blockSignals(False)
+        
+        self._update_favorite_button()
+    
+    def _on_remove_favorite(self, code: str):
+        """从收藏夹中移除"""
+        reply = QMessageBox.question(
+            self, "确认移除",
+            f"确定要将 {code} 从收藏中移除吗？",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No
+        )
+        
+        if reply == QMessageBox.StandardButton.Yes:
+            self._remove_favorite(code)
+            self._refresh_favorites_list()
+            self._update_rates_list()
+            
+            current_from = self._from_combo.currentData()
+            current_to = self._to_combo.currentData()
+            current_base = self._base_combo.currentData()
+            
+            self._from_combo.blockSignals(True)
+            self._to_combo.blockSignals(True)
+            self._base_combo.blockSignals(True)
+            
+            self._populate_currency_combo(self._from_combo)
+            self._populate_currency_combo(self._to_combo)
+            self._populate_currency_combo(self._base_combo)
+            
+            for i in range(self._from_combo.count()):
+                if self._from_combo.itemData(i) == current_from:
+                    self._from_combo.setCurrentIndex(i)
+                    break
+            
+            for i in range(self._to_combo.count()):
+                if self._to_combo.itemData(i) == current_to:
+                    self._to_combo.setCurrentIndex(i)
+                    break
+            
+            for i in range(self._base_combo.count()):
+                if self._base_combo.itemData(i) == current_base:
+                    self._base_combo.setCurrentIndex(i)
+                    break
+            
+            self._from_combo.blockSignals(False)
+            self._to_combo.blockSignals(False)
+            self._base_combo.blockSignals(False)
+            
+            self._update_favorite_button()
     
     def _load_history(self):
         """加载历史记录"""
