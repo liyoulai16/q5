@@ -13,6 +13,24 @@ from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional, List
 
 
+class ModuleCategory:
+    """
+    模块分类常量
+    """
+    OFFICE_TOOLS = "office_tools"
+    LIFE_TOOLS = "life_tools"
+    
+    CATEGORY_NAMES = {
+        OFFICE_TOOLS: "办公工具",
+        LIFE_TOOLS: "生活工具"
+    }
+    
+    CATEGORY_ICONS = {
+        OFFICE_TOOLS: "📋",
+        LIFE_TOOLS: "🏠"
+    }
+
+
 class BaseModule(ABC):
     """
     模块基类
@@ -46,6 +64,11 @@ class BaseModule(ABC):
     def version(self) -> str:
         """模块版本"""
         pass
+    
+    @property
+    def category(self) -> str:
+        """模块分类，默认为办公工具"""
+        return ModuleCategory.OFFICE_TOOLS
     
     @property
     def icon(self) -> Optional[str]:
@@ -205,6 +228,7 @@ class ModuleManager:
                             'name': temp_instance.name,
                             'description': temp_instance.description,
                             'version': temp_instance.version,
+                            'category': temp_instance.category,
                             'icon': temp_instance.icon,
                             'author': temp_instance.author,
                             'module_class': attr
@@ -288,3 +312,22 @@ class ModuleManager:
         检查模块是否已加载
         """
         return module_id in self._loaded_modules
+    
+    def get_available_categories(self) -> List[str]:
+        """
+        获取所有可用的模块分类
+        """
+        categories = set()
+        for module_info in self._available_modules.values():
+            categories.add(module_info.get('category', ModuleCategory.OFFICE_TOOLS))
+        return list(categories)
+    
+    def get_modules_by_category(self, category: str) -> Dict[str, Dict[str, Any]]:
+        """
+        按分类获取模块信息
+        """
+        filtered_modules = {}
+        for module_id, module_info in self._available_modules.items():
+            if module_info.get('category') == category:
+                filtered_modules[module_id] = module_info.copy()
+        return filtered_modules

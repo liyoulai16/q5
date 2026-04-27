@@ -11,7 +11,7 @@ from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QTextEdit,
 from PyQt6.QtCore import Qt, QDateTime
 from PyQt6.QtGui import QFont
 
-from modules.module_manager import BaseModule
+from modules.module_manager import BaseModule, ModuleCategory
 from database.database_manager import DatabaseManager
 
 
@@ -36,6 +36,10 @@ class NotepadModule(BaseModule):
     @property
     def version(self) -> str:
         return "1.0.0"
+    
+    @property
+    def category(self) -> str:
+        return ModuleCategory.OFFICE_TOOLS
     
     @property
     def author(self) -> str:

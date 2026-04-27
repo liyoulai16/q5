@@ -18,7 +18,7 @@ from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
 from PyQt6.QtCore import Qt, QDateTime
 from PyQt6.QtGui import QFont, QPixmap, QImage
 
-from modules.module_manager import BaseModule
+from modules.module_manager import BaseModule, ModuleCategory
 from database.database_manager import DatabaseManager
 
 try:
