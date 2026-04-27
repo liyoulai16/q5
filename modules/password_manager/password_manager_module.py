@@ -129,12 +129,6 @@ class PasswordCard(QFrame):
         """)
         self._fav_btn.clicked.connect(self._on_fav_clicked)
         layout.addWidget(self._fav_btn)
-    
-    def _on_fav_clicked(self):
-        """收藏按钮点击"""
-        current_is_favorite = self.password_data.get('is_favorite', 0) == 1
-        new_is_favorite = not current_is_favorite
-        self.favorite_clicked.emit(self.password_data['id'], new_is_favorite)
         
         info_layout = QVBoxLayout()
         info_layout.setSpacing(4)
@@ -144,7 +138,7 @@ class PasswordCard(QFrame):
         
         category = self.password_data.get('category', '其他')
         category_icon = "📁"
-        for cat, icon in PASSWORD_CATEGORIES[1:]:
+        for cat, icon in PASSWORD_CATEGORIES[2:]:
             if cat == category:
                 category_icon = icon
                 break
@@ -240,6 +234,12 @@ class PasswordCard(QFrame):
         action_layout.addLayout(btn_row_layout)
         
         layout.addLayout(action_layout)
+    
+    def _on_fav_clicked(self):
+        """收藏按钮点击"""
+        current_is_favorite = self.password_data.get('is_favorite', 0) == 1
+        new_is_favorite = not current_is_favorite
+        self.favorite_clicked.emit(self.password_data['id'], new_is_favorite)
 
 
 class PasswordEditDialog(QDialog):
