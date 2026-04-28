@@ -20,17 +20,20 @@ class ModuleCategory:
     OFFICE_TOOLS = "office_tools"
     LIFE_TOOLS = "life_tools"
     DATA_MANAGEMENT = "data_management"
+    CORE_FRAMEWORK = "core_framework"
     
     CATEGORY_NAMES = {
         OFFICE_TOOLS: "办公工具",
         LIFE_TOOLS: "生活工具",
-        DATA_MANAGEMENT: "数据管理"
+        DATA_MANAGEMENT: "数据管理",
+        CORE_FRAMEWORK: "核心框架"
     }
     
     CATEGORY_ICONS = {
         OFFICE_TOOLS: "📋",
         LIFE_TOOLS: "🏠",
-        DATA_MANAGEMENT: "🗄️"
+        DATA_MANAGEMENT: "🗄️",
+        CORE_FRAMEWORK: "⚙️"
     }
 
 

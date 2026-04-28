@@ -6,14 +6,16 @@
 
 from PyQt6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                              QStackedWidget, QTreeWidget, QTreeWidgetItem,
-                             QSplitter, QMessageBox, QLabel, QFrame, QHBoxLayout,
+                             QSplitter, QLabel, QFrame, QHBoxLayout,
                              QPushButton)
 from PyQt6.QtCore import Qt, QSize
 from PyQt6.QtGui import QFont, QIcon, QColor, QBrush
 
 from modules.module_manager import ModuleManager, ModuleCategory
+from modules.core_framework.core_framework_module import ThemeManager
 from database.database_manager import DatabaseManager
 from core.change_password_dialog import ChangePasswordDialog
+from core.custom_dialogs import CustomMessageBox, CustomConfirmDialog
 
 
 class MainWindow(QMainWindow):
@@ -24,11 +26,21 @@ class MainWindow(QMainWindow):
         self.setMinimumSize(1000, 700)
         self.resize(1200, 800)
         
+        self._theme_manager = ThemeManager()
+        self._apply_theme()
+        
         self.module_manager = ModuleManager()
         self.database_manager = DatabaseManager()
         
         self._init_ui()
         self._load_modules()
+    
+    def _apply_theme(self):
+        """
+        应用当前主题
+        """
+        stylesheet = self._theme_manager.generate_stylesheet()
+        self.setStyleSheet(stylesheet)
     
     def _init_ui(self):
         central_widget = QWidget()
@@ -253,21 +265,22 @@ class MainWindow(QMainWindow):
         修改密码按钮点击事件
         """
         if not self._current_user:
-            QMessageBox.warning(self, "警告", "无法获取当前用户信息！")
+            CustomMessageBox.warning(self, "警告", "无法获取当前用户信息！")
             return
         
         dialog = ChangePasswordDialog(self._current_user, self)
         if dialog.exec() == ChangePasswordDialog.DialogCode.Accepted:
-            QMessageBox.information(self, "提示", "密码修改成功，请重新登录。")
+            CustomMessageBox.success(self, "提示", "密码修改成功，请重新登录。")
             self.close()
     
     def closeEvent(self, event):
-        reply = QMessageBox.question(self, '确认退出',
-                                     '确定要退出应用程序吗？',
-                                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-                                     QMessageBox.StandardButton.No)
+        reply = CustomConfirmDialog.question(
+            self, '确认退出',
+            '确定要退出应用程序吗？',
+            '退出', '取消', 'no'
+        )
         
-        if reply == QMessageBox.StandardButton.Yes:
+        if reply:
             self.database_manager.close()
             self.module_manager.unload_all_modules()
             event.accept()

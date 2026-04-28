@@ -6,12 +6,13 @@
 """
 
 from PyQt6.QtWidgets import (QDialog, QWidget, QVBoxLayout, QHBoxLayout,
-                             QLabel, QLineEdit, QPushButton, QMessageBox,
+                             QLabel, QLineEdit, QPushButton,
                              QFrame, QSpacerItem, QSizePolicy)
 from PyQt6.QtCore import Qt, QSize
 from PyQt6.QtGui import QFont, QPixmap
 
 from database.database_manager import DatabaseManager
+from core.custom_dialogs import CustomMessageBox, CustomConfirmDialog
 
 
 class ChangePasswordDialog(QDialog):
@@ -236,27 +237,27 @@ class ChangePasswordDialog(QDialog):
         confirm_password = self.confirm_password_input.text()
         
         if not old_password:
-            QMessageBox.warning(self, "警告", "请输入旧密码！")
+            CustomMessageBox.warning(self, "警告", "请输入旧密码！")
             self.old_password_input.setFocus()
             return
         
         if not new_password:
-            QMessageBox.warning(self, "警告", "请输入新密码！")
+            CustomMessageBox.warning(self, "警告", "请输入新密码！")
             self.new_password_input.setFocus()
             return
         
         if len(new_password) < 4:
-            QMessageBox.warning(self, "警告", "新密码长度不能少于4位！")
+            CustomMessageBox.warning(self, "警告", "新密码长度不能少于4位！")
             self.new_password_input.setFocus()
             return
         
         if not confirm_password:
-            QMessageBox.warning(self, "警告", "请确认新密码！")
+            CustomMessageBox.warning(self, "警告", "请确认新密码！")
             self.confirm_password_input.setFocus()
             return
         
         if new_password != confirm_password:
-            QMessageBox.warning(self, "警告", "两次输入的新密码不一致！")
+            CustomMessageBox.warning(self, "警告", "两次输入的新密码不一致！")
             self.confirm_password_input.clear()
             self.confirm_password_input.setFocus()
             return
@@ -266,15 +267,15 @@ class ChangePasswordDialog(QDialog):
         
         try:
             if self._db.change_password(self._username, old_password, new_password):
-                QMessageBox.information(self, "修改成功", "密码修改成功！请使用新密码登录。")
+                CustomMessageBox.success(self, "修改成功", "密码修改成功！请使用新密码登录。")
                 self.accept()
             else:
-                QMessageBox.warning(self, "修改失败", "旧密码错误，请重新输入！")
+                CustomMessageBox.warning(self, "修改失败", "旧密码错误，请重新输入！")
                 self.old_password_input.clear()
                 self.old_password_input.setFocus()
         
         except Exception as e:
-            QMessageBox.critical(self, "错误", f"修改密码时发生错误: {str(e)}")
+            CustomMessageBox.error(self, "错误", f"修改密码时发生错误: {str(e)}")
         
         finally:
             self.confirm_btn.setEnabled(True)
