@@ -562,15 +562,15 @@ class FileRenamerModule(BaseModule):
         创建删除组
         """
         group = QGroupBox("删除字符")
-        group.setMinimumHeight(220)
+        group.setMinimumHeight(180)
         group.setStyleSheet("""
             QGroupBox {
                 font-weight: bold;
-                font-size: 14px;
+                font-size: 13px;
                 border: 2px solid #e0e0e0;
                 border-radius: 8px;
-                margin-top: 12px;
-                padding-top: 12px;
+                margin-top: 10px;
+                padding-top: 10px;
                 background-color: white;
             }
             QGroupBox::title {
@@ -581,54 +581,54 @@ class FileRenamerModule(BaseModule):
             }
         """)
         layout = QVBoxLayout(group)
-        layout.setContentsMargins(20, 30, 20, 20)
-        layout.setSpacing(18)
+        layout.setContentsMargins(18, 25, 18, 18)
+        layout.setSpacing(15)
 
         self._delete_check = QCheckBox("启用")
-        self._delete_check.setFont(QFont("Microsoft YaHei", 12))
+        self._delete_check.setFont(QFont("Microsoft YaHei", 11))
         self._delete_check.setStyleSheet("""
             QCheckBox {
-                font-size: 13px;
+                font-size: 12px;
                 color: #333333;
-                spacing: 8px;
+                spacing: 6px;
             }
             QCheckBox::indicator {
-                width: 22px;
-                height: 22px;
+                width: 20px;
+                height: 20px;
             }
         """)
         self._delete_check.stateChanged.connect(self._on_rule_changed)
 
         option_layout = QHBoxLayout()
-        option_layout.setSpacing(15)
+        option_layout.setSpacing(12)
 
         self._delete_mode_group = QButtonGroup()
         self._delete_range_radio = QRadioButton("删除范围")
         self._delete_range_radio.setChecked(True)
-        self._delete_range_radio.setFont(QFont("Microsoft YaHei", 12))
+        self._delete_range_radio.setFont(QFont("Microsoft YaHei", 11))
         self._delete_range_radio.setStyleSheet("""
             QRadioButton {
-                font-size: 13px;
+                font-size: 12px;
                 color: #333333;
-                spacing: 8px;
+                spacing: 6px;
             }
             QRadioButton::indicator {
-                width: 22px;
-                height: 22px;
+                width: 20px;
+                height: 20px;
             }
         """)
         self._delete_range_radio.toggled.connect(self._on_rule_changed)
         self._delete_text_radio = QRadioButton("删除文本")
-        self._delete_text_radio.setFont(QFont("Microsoft YaHei", 12))
+        self._delete_text_radio.setFont(QFont("Microsoft YaHei", 11))
         self._delete_text_radio.setStyleSheet("""
             QRadioButton {
-                font-size: 13px;
+                font-size: 12px;
                 color: #333333;
-                spacing: 8px;
+                spacing: 6px;
             }
             QRadioButton::indicator {
-                width: 22px;
-                height: 22px;
+                width: 20px;
+                height: 20px;
             }
         """)
         self._delete_text_radio.toggled.connect(self._on_rule_changed)
@@ -641,52 +641,52 @@ class FileRenamerModule(BaseModule):
         option_layout.addStretch()
 
         range_layout = QHBoxLayout()
-        range_layout.setSpacing(12)
+        range_layout.setSpacing(10)
         self._delete_start_label = QLabel("从第")
-        self._delete_start_label.setFont(QFont("Microsoft YaHei", 12))
+        self._delete_start_label.setFont(QFont("Microsoft YaHei", 11))
         self._delete_start_label.setStyleSheet("color: #333333;")
         self._delete_start_spin = QSpinBox()
         self._delete_start_spin.setRange(1, 999)
         self._delete_start_spin.setValue(1)
-        self._delete_start_spin.setMinimumHeight(40)
-        self._delete_start_spin.setFont(QFont("Microsoft YaHei", 12))
+        self._delete_start_spin.setMinimumHeight(36)
+        self._delete_start_spin.setFont(QFont("Microsoft YaHei", 11))
         self._delete_start_spin.setStyleSheet("""
             QSpinBox {
-                padding: 8px 12px;
+                padding: 6px 10px;
                 border: 2px solid #ddd;
                 border-radius: 6px;
                 background-color: white;
-                font-size: 13px;
+                font-size: 12px;
             }
             QSpinBox::up-button, QSpinBox::down-button {
-                width: 25px;
+                width: 22px;
             }
         """)
         self._delete_start_spin.valueChanged.connect(self._on_rule_changed)
 
         self._delete_count_label = QLabel("个字符开始，删除")
-        self._delete_count_label.setFont(QFont("Microsoft YaHei", 12))
+        self._delete_count_label.setFont(QFont("Microsoft YaHei", 11))
         self._delete_count_label.setStyleSheet("color: #333333;")
         self._delete_count_spin = QSpinBox()
         self._delete_count_spin.setRange(1, 999)
         self._delete_count_spin.setValue(1)
-        self._delete_count_spin.setMinimumHeight(40)
-        self._delete_count_spin.setFont(QFont("Microsoft YaHei", 12))
+        self._delete_count_spin.setMinimumHeight(36)
+        self._delete_count_spin.setFont(QFont("Microsoft YaHei", 11))
         self._delete_count_spin.setStyleSheet("""
             QSpinBox {
-                padding: 8px 12px;
+                padding: 6px 10px;
                 border: 2px solid #ddd;
                 border-radius: 6px;
                 background-color: white;
-                font-size: 13px;
+                font-size: 12px;
             }
             QSpinBox::up-button, QSpinBox::down-button {
-                width: 25px;
+                width: 22px;
             }
         """)
         self._delete_count_spin.valueChanged.connect(self._on_rule_changed)
         self._delete_char_label = QLabel("个字符")
-        self._delete_char_label.setFont(QFont("Microsoft YaHei", 12))
+        self._delete_char_label.setFont(QFont("Microsoft YaHei", 11))
         self._delete_char_label.setStyleSheet("color: #333333;")
 
         range_layout.addWidget(self._delete_start_label)
@@ -697,21 +697,21 @@ class FileRenamerModule(BaseModule):
         range_layout.addStretch()
 
         text_layout = QHBoxLayout()
-        text_layout.setSpacing(12)
+        text_layout.setSpacing(10)
         self._delete_text_label = QLabel("删除文本:")
-        self._delete_text_label.setFont(QFont("Microsoft YaHei", 12))
+        self._delete_text_label.setFont(QFont("Microsoft YaHei", 11))
         self._delete_text_label.setStyleSheet("color: #333333;")
         self._delete_text_input = QLineEdit()
         self._delete_text_input.setPlaceholderText("输入要删除的文本...")
-        self._delete_text_input.setMinimumHeight(40)
-        self._delete_text_input.setFont(QFont("Microsoft YaHei", 12))
+        self._delete_text_input.setMinimumHeight(36)
+        self._delete_text_input.setFont(QFont("Microsoft YaHei", 11))
         self._delete_text_input.setStyleSheet("""
             QLineEdit {
-                padding: 8px 15px;
+                padding: 6px 12px;
                 border: 2px solid #ddd;
                 border-radius: 6px;
                 background-color: white;
-                font-size: 13px;
+                font-size: 12px;
             }
             QLineEdit:focus {
                 border-color: #1565C0;
@@ -734,15 +734,15 @@ class FileRenamerModule(BaseModule):
         创建插入组
         """
         group = QGroupBox("插入字符")
-        group.setMinimumHeight(180)
+        group.setMinimumHeight(160)
         group.setStyleSheet("""
             QGroupBox {
                 font-weight: bold;
-                font-size: 14px;
+                font-size: 13px;
                 border: 2px solid #e0e0e0;
                 border-radius: 8px;
-                margin-top: 12px;
-                padding-top: 12px;
+                margin-top: 10px;
+                padding-top: 10px;
                 background-color: white;
             }
             QGroupBox::title {
@@ -753,63 +753,63 @@ class FileRenamerModule(BaseModule):
             }
         """)
         layout = QVBoxLayout(group)
-        layout.setContentsMargins(20, 30, 20, 20)
-        layout.setSpacing(18)
+        layout.setContentsMargins(18, 25, 18, 18)
+        layout.setSpacing(15)
 
         self._insert_check = QCheckBox("启用")
-        self._insert_check.setFont(QFont("Microsoft YaHei", 12))
+        self._insert_check.setFont(QFont("Microsoft YaHei", 11))
         self._insert_check.setStyleSheet("""
             QCheckBox {
-                font-size: 13px;
+                font-size: 12px;
                 color: #333333;
-                spacing: 8px;
+                spacing: 6px;
             }
             QCheckBox::indicator {
-                width: 22px;
-                height: 22px;
+                width: 20px;
+                height: 20px;
             }
         """)
         self._insert_check.stateChanged.connect(self._on_rule_changed)
 
         insert_layout = QHBoxLayout()
-        insert_layout.setSpacing(12)
+        insert_layout.setSpacing(10)
 
         self._insert_pos_label = QLabel("在第")
-        self._insert_pos_label.setFont(QFont("Microsoft YaHei", 12))
+        self._insert_pos_label.setFont(QFont("Microsoft YaHei", 11))
         self._insert_pos_label.setStyleSheet("color: #333333;")
         self._insert_pos_spin = QSpinBox()
         self._insert_pos_spin.setRange(1, 999)
         self._insert_pos_spin.setValue(1)
-        self._insert_pos_spin.setMinimumHeight(40)
-        self._insert_pos_spin.setFont(QFont("Microsoft YaHei", 12))
+        self._insert_pos_spin.setMinimumHeight(36)
+        self._insert_pos_spin.setFont(QFont("Microsoft YaHei", 11))
         self._insert_pos_spin.setStyleSheet("""
             QSpinBox {
-                padding: 8px 12px;
+                padding: 6px 10px;
                 border: 2px solid #ddd;
                 border-radius: 6px;
                 background-color: white;
-                font-size: 13px;
+                font-size: 12px;
             }
             QSpinBox::up-button, QSpinBox::down-button {
-                width: 25px;
+                width: 22px;
             }
         """)
         self._insert_pos_spin.valueChanged.connect(self._on_rule_changed)
 
         self._insert_text_label = QLabel("个字符位置插入:")
-        self._insert_text_label.setFont(QFont("Microsoft YaHei", 12))
+        self._insert_text_label.setFont(QFont("Microsoft YaHei", 11))
         self._insert_text_label.setStyleSheet("color: #333333;")
         self._insert_text_input = QLineEdit()
         self._insert_text_input.setPlaceholderText("输入要插入的文本...")
-        self._insert_text_input.setMinimumHeight(40)
-        self._insert_text_input.setFont(QFont("Microsoft YaHei", 12))
+        self._insert_text_input.setMinimumHeight(36)
+        self._insert_text_input.setFont(QFont("Microsoft YaHei", 11))
         self._insert_text_input.setStyleSheet("""
             QLineEdit {
-                padding: 8px 15px;
+                padding: 6px 12px;
                 border: 2px solid #ddd;
                 border-radius: 6px;
                 background-color: white;
-                font-size: 13px;
+                font-size: 12px;
             }
             QLineEdit:focus {
                 border-color: #1565C0;
