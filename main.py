@@ -8,10 +8,11 @@
 import sys
 import os
 
-from PyQt6.QtWidgets import QApplication, QMessageBox
+from PyQt6.QtWidgets import QApplication
 
 from core.main_window import MainWindow
 from core.login_dialog import LoginDialog
+from core.custom_dialogs import CustomMessageBox
 
 def main():
     app = QApplication(sys.argv)
@@ -26,7 +27,7 @@ def main():
             
             sys.exit(app.exec())
     else:
-        QMessageBox.information(None, "提示", "登录已取消，程序将退出。")
+        CustomMessageBox.information(None, "提示", "登录已取消，程序将退出。")
         sys.exit(0)
 
 if __name__ == '__main__':

@@ -6,12 +6,13 @@
 """
 
 from PyQt6.QtWidgets import (QDialog, QWidget, QVBoxLayout, QHBoxLayout,
-                             QLabel, QLineEdit, QPushButton, QMessageBox,
+                             QLabel, QLineEdit, QPushButton,
                              QFrame, QSpacerItem, QSizePolicy)
 from PyQt6.QtCore import Qt, QSize
 from PyQt6.QtGui import QFont, QPixmap
 
 from database.database_manager import DatabaseManager
+from core.custom_dialogs import CustomMessageBox, CustomConfirmDialog
 
 
 class LoginDialog(QDialog):
@@ -187,12 +188,12 @@ class LoginDialog(QDialog):
         password = self.password_input.text()
         
         if not username:
-            QMessageBox.warning(self, "警告", "请输入用户名！")
+            CustomMessageBox.warning(self, "警告", "请输入用户名！")
             self.username_input.setFocus()
             return
         
         if not password:
-            QMessageBox.warning(self, "警告", "请输入密码！")
+            CustomMessageBox.warning(self, "警告", "请输入密码！")
             self.password_input.setFocus()
             return
         
@@ -205,15 +206,15 @@ class LoginDialog(QDialog):
                 self._authenticated = True
                 self._current_user = username
                 
-                QMessageBox.information(self, "登录成功", f"欢迎回来，{username}！")
+                CustomMessageBox.success(self, "登录成功", f"欢迎回来，{username}！")
                 self.accept()
             else:
-                QMessageBox.warning(self, "登录失败", "用户名或密码错误！")
+                CustomMessageBox.warning(self, "登录失败", "用户名或密码错误！")
                 self.password_input.clear()
                 self.password_input.setFocus()
         
         except Exception as e:
-            QMessageBox.critical(self, "错误", f"登录时发生错误: {str(e)}")
+            CustomMessageBox.error(self, "错误", f"登录时发生错误: {str(e)}")
         
         finally:
             self.login_btn.setEnabled(True)
