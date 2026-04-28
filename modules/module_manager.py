@@ -10,7 +10,7 @@ import sys
 import importlib
 import importlib.util
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Callable
 
 
 class ModuleCategory:
@@ -170,49 +170,42 @@ class BaseModule(ABC):
         }
 
 
-class ModuleManager:
+class LazyModuleProxy:
     """
-    模块管理器
-    负责发现、加载和管理所有模块
+    延迟加载模块代理
+    在实际需要时才加载完整模块
     """
     
-    def __init__(self, modules_dir: str = None):
-        if modules_dir is None:
-            modules_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)))
+    def __init__(self, module_id: str, module_path: str, module_file: str):
+        self._module_id = module_id
+        self._module_path = module_path
+        self._module_file = module_file
+        self._module_class: Optional[type] = None
+        self._module_instance: Optional[BaseModule] = None
+        self._metadata_loaded = False
         
-        self.modules_dir = modules_dir
-        self._available_modules: Dict[str, Dict[str, Any]] = {}
-        self._loaded_modules: Dict[str, BaseModule] = {}
-        self._module_classes: Dict[str, type] = {}
-        
-        self._discover_modules()
+        self._cached_metadata: Dict[str, Any] = {
+            'module_id': module_id,
+            'name': module_id,
+            'description': '',
+            'version': '1.0.0',
+            'category': ModuleCategory.OFFICE_TOOLS,
+            'icon': None,
+            'author': None
+        }
     
-    def _discover_modules(self) -> None:
+    def _load_module_class(self) -> bool:
         """
-        发现可用的模块
-        扫描modules目录下的所有子目录，查找符合规范的模块
+        加载模块类（仅导入，不实例化）
         """
-        if not os.path.exists(self.modules_dir):
-            print(f"模块目录不存在: {self.modules_dir}")
-            return
+        if self._module_class is not None:
+            return True
         
-        for item in os.listdir(self.modules_dir):
-            item_path = os.path.join(self.modules_dir, item)
-            
-            if os.path.isdir(item_path) and not item.startswith('_'):
-                module_file = os.path.join(item_path, f"{item}_module.py")
-                if os.path.exists(module_file):
-                    self._register_module(item, item_path)
-    
-    def _register_module(self, module_name: str, module_path: str) -> None:
-        """
-        注册一个模块
-        """
         try:
-            module_file = os.path.join(module_path, f"{module_name}_module.py")
+            module_name = os.path.basename(self._module_path)
             module_spec = importlib.util.spec_from_file_location(
                 f"modules.{module_name}.{module_name}_module",
-                module_file
+                self._module_file
             )
             
             if module_spec and module_spec.loader:
@@ -225,48 +218,145 @@ class ModuleManager:
                     if (isinstance(attr, type) and 
                         issubclass(attr, BaseModule) and 
                         attr != BaseModule):
-                        
-                        temp_instance = attr()
-                        module_id = temp_instance.module_id
-                        
-                        self._module_classes[module_id] = attr
-                        self._available_modules[module_id] = {
-                            'name': temp_instance.name,
-                            'description': temp_instance.description,
-                            'version': temp_instance.version,
-                            'category': temp_instance.category,
-                            'icon': temp_instance.icon,
-                            'author': temp_instance.author,
-                            'module_class': attr
-                        }
-                        
-                        print(f"发现模块: {temp_instance.name} ({module_id})")
-                        break
+                        self._module_class = attr
+                        return True
                         
         except Exception as e:
-            print(f"注册模块 {module_name} 失败: {e}")
+            print(f"加载模块类 {self._module_id} 失败: {e}")
+        
+        return False
+    
+    def _load_metadata(self) -> None:
+        """
+        加载模块元数据（轻量级加载，仅获取基本信息）
+        """
+        if self._metadata_loaded:
+            return
+        
+        if self._load_module_class() and self._module_class:
+            try:
+                temp_instance = self._module_class()
+                self._cached_metadata = {
+                    'module_id': temp_instance.module_id,
+                    'name': temp_instance.name,
+                    'description': temp_instance.description,
+                    'version': temp_instance.version,
+                    'category': temp_instance.category,
+                    'icon': temp_instance.icon,
+                    'author': temp_instance.author
+                }
+                self._metadata_loaded = True
+            except Exception as e:
+                print(f"加载模块元数据 {self._module_id} 失败: {e}")
+    
+    def get_metadata(self) -> Dict[str, Any]:
+        """
+        获取模块元数据
+        """
+        self._load_metadata()
+        return self._cached_metadata.copy()
+    
+    def get_instance(self, force_reload: bool = False) -> Optional[BaseModule]:
+        """
+        获取模块实例（完全加载）
+        """
+        if self._module_instance is not None and not force_reload:
+            return self._module_instance
+        
+        if self._load_module_class() and self._module_class:
+            try:
+                self._module_instance = self._module_class()
+                return self._module_instance
+            except Exception as e:
+                print(f"创建模块实例 {self._module_id} 失败: {e}")
+        
+        return None
+    
+    def is_loaded(self) -> bool:
+        """
+        检查模块是否已完全加载
+        """
+        return self._module_instance is not None
+    
+    def is_metadata_loaded(self) -> bool:
+        """
+        检查元数据是否已加载
+        """
+        return self._metadata_loaded
+
+
+class ModuleManager:
+    """
+    模块管理器
+    负责发现、加载和管理所有模块
+    支持延迟加载：只在实际使用时才加载完整模块
+    """
+    
+    def __init__(self, modules_dir: str = None):
+        if modules_dir is None:
+            modules_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)))
+        
+        self.modules_dir = modules_dir
+        self._module_proxies: Dict[str, LazyModuleProxy] = {}
+        self._loaded_modules: Dict[str, BaseModule] = {}
+        
+        self._discover_modules()
+    
+    def _discover_modules(self) -> None:
+        """
+        发现可用的模块
+        扫描modules目录下的所有子目录，查找符合规范的模块
+        使用延迟加载：仅创建代理，不实际导入模块
+        """
+        if not os.path.exists(self.modules_dir):
+            print(f"模块目录不存在: {self.modules_dir}")
+            return
+        
+        for item in os.listdir(self.modules_dir):
+            item_path = os.path.join(self.modules_dir, item)
+            
+            if os.path.isdir(item_path) and not item.startswith('_'):
+                module_file = os.path.join(item_path, f"{item}_module.py")
+                if os.path.exists(module_file):
+                    self._register_module_lazy(item, item_path, module_file)
+    
+    def _register_module_lazy(self, module_name: str, module_path: str, module_file: str) -> None:
+        """
+        延迟注册模块（仅创建代理，不实际加载）
+        """
+        try:
+            module_id = module_name
+            proxy = LazyModuleProxy(module_id, module_path, module_file)
+            self._module_proxies[module_id] = proxy
+            print(f"发现模块: {module_name} (延迟加载)")
+        except Exception as e:
+            print(f"注册模块代理 {module_name} 失败: {e}")
     
     def get_available_modules(self) -> Dict[str, Dict[str, Any]]:
         """
         获取所有可用模块的信息
+        延迟加载：仅在需要时才加载元数据
         """
-        return self._available_modules.copy()
+        result = {}
+        for module_id, proxy in self._module_proxies.items():
+            result[module_id] = proxy.get_metadata()
+        return result
     
     def load_module(self, module_id: str) -> Optional[BaseModule]:
         """
-        加载指定的模块
+        加载指定的模块（完全加载，包括初始化）
         """
         if module_id in self._loaded_modules:
             return self._loaded_modules[module_id]
         
-        if module_id not in self._available_modules:
+        if module_id not in self._module_proxies:
             print(f"模块不存在: {module_id}")
             return None
         
-        try:
-            module_class = self._module_classes[module_id]
-            module_instance = module_class()
-            
+        proxy = self._module_proxies[module_id]
+        module_instance = proxy.get_instance()
+        
+        if module_instance:
             if module_instance.load():
                 self._loaded_modules[module_id] = module_instance
                 print(f"成功加载模块: {module_id}")
@@ -274,10 +364,8 @@ class ModuleManager:
             else:
                 print(f"模块加载失败: {module_id}")
                 return None
-                
-        except Exception as e:
-            print(f"加载模块 {module_id} 时发生错误: {e}")
-            return None
+        
+        return None
     
     def unload_module(self, module_id: str) -> bool:
         """
@@ -289,6 +377,8 @@ class ModuleManager:
         module_instance = self._loaded_modules[module_id]
         if module_instance.unload():
             del self._loaded_modules[module_id]
+            if module_id in self._module_proxies:
+                self._module_proxies[module_id]._module_instance = None
             print(f"成功卸载模块: {module_id}")
             return True
         
@@ -315,7 +405,7 @@ class ModuleManager:
     
     def is_module_loaded(self, module_id: str) -> bool:
         """
-        检查模块是否已加载
+        检查模块是否已完全加载
         """
         return module_id in self._loaded_modules
     
@@ -324,8 +414,9 @@ class ModuleManager:
         获取所有可用的模块分类
         """
         categories = set()
-        for module_info in self._available_modules.values():
-            categories.add(module_info.get('category', ModuleCategory.OFFICE_TOOLS))
+        for proxy in self._module_proxies.values():
+            metadata = proxy.get_metadata()
+            categories.add(metadata.get('category', ModuleCategory.OFFICE_TOOLS))
         return list(categories)
     
     def get_modules_by_category(self, category: str) -> Dict[str, Dict[str, Any]]:
@@ -333,7 +424,16 @@ class ModuleManager:
         按分类获取模块信息
         """
         filtered_modules = {}
-        for module_id, module_info in self._available_modules.items():
-            if module_info.get('category') == category:
-                filtered_modules[module_id] = module_info.copy()
+        for module_id, proxy in self._module_proxies.items():
+            metadata = proxy.get_metadata()
+            if metadata.get('category') == category:
+                filtered_modules[module_id] = metadata.copy()
         return filtered_modules
+    
+    def get_module_metadata(self, module_id: str) -> Optional[Dict[str, Any]]:
+        """
+        获取指定模块的元数据（轻量级，不加载完整模块）
+        """
+        if module_id in self._module_proxies:
+            return self._module_proxies[module_id].get_metadata()
+        return None

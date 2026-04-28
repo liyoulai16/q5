@@ -27,6 +27,7 @@ class MainWindow(QMainWindow):
         self.resize(1200, 800)
         
         self._theme_manager = ThemeManager()
+        self._theme_manager.add_theme_change_callback(self._on_theme_changed)
         self._apply_theme()
         
         self.module_manager = ModuleManager()
@@ -273,6 +274,12 @@ class MainWindow(QMainWindow):
             CustomMessageBox.success(self, "提示", "密码修改成功，请重新登录。")
             self.close()
     
+    def _on_theme_changed(self):
+        """
+        主题变化回调 - 重新应用主题
+        """
+        self._apply_theme()
+    
     def closeEvent(self, event):
         reply = CustomConfirmDialog.question(
             self, '确认退出',
@@ -281,6 +288,7 @@ class MainWindow(QMainWindow):
         )
         
         if reply:
+            self._theme_manager.remove_theme_change_callback(self._on_theme_changed)
             self.database_manager.close()
             self.module_manager.unload_all_modules()
             event.accept()

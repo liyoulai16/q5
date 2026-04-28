@@ -8,9 +8,9 @@
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
                              QPushButton, QFrame, QButtonGroup, QRadioButton,
                              QGroupBox, QFormLayout, QComboBox, QCheckBox,
-                             QSlider, QSpinBox)
+                             QSlider, QSpinBox, QColorDialog, QTabWidget)
 from PyQt6.QtCore import Qt, pyqtSignal, QSettings
-from PyQt6.QtGui import QFont, QColor
+from PyQt6.QtGui import QFont, QColor, QPalette
 
 from modules.module_manager import BaseModule, ModuleCategory
 from core.custom_dialogs import CustomMessageBox
@@ -20,113 +20,258 @@ class ThemeManager:
     """
     主题管理器
     管理应用程序的主题切换和样式应用
+    支持多种预定义主题和自定义主题
     """
     
     LIGHT_THEME = "light"
     DARK_THEME = "dark"
     BLUE_THEME = "blue"
     GREEN_THEME = "green"
+    PURPLE_THEME = "purple"
+    ORANGE_THEME = "orange"
+    PINK_THEME = "pink"
+    TEAL_THEME = "teal"
+    HIGH_CONTRAST_THEME = "high_contrast"
+    CUSTOM_THEME = "custom"
     
     THEMES = {
         LIGHT_THEME: {
             "name": "浅色主题",
             "icon": "☀️",
-            "primary_color": "#1565C0",
-            "primary_light": "#1976D2",
-            "primary_dark": "#0D47A1",
-            "background": "#FFFFFF",
-            "secondary_bg": "#F8F9FA",
-            "tertiary_bg": "#F0F0F0",
-            "text_primary": "#333333",
-            "text_secondary": "#666666",
-            "text_hint": "#999999",
-            "border": "#E0E0E0",
-            "border_light": "#EEEEEE",
-            "success": "#4CAF50",
-            "warning": "#FF9800",
-            "error": "#F44336",
-            "info": "#2196F3"
+            "is_custom": False,
+            "colors": {
+                "primary_color": "#1565C0",
+                "primary_light": "#1976D2",
+                "primary_dark": "#0D47A1",
+                "background": "#FFFFFF",
+                "secondary_bg": "#F8F9FA",
+                "tertiary_bg": "#F0F0F0",
+                "text_primary": "#333333",
+                "text_secondary": "#666666",
+                "text_hint": "#999999",
+                "border": "#E0E0E0",
+                "border_light": "#EEEEEE",
+                "success": "#4CAF50",
+                "warning": "#FF9800",
+                "error": "#F44336",
+                "info": "#2196F3"
+            }
         },
         DARK_THEME: {
             "name": "深色主题",
             "icon": "🌙",
-            "primary_color": "#64B5F6",
-            "primary_light": "#90CAF9",
-            "primary_dark": "#42A5F5",
-            "background": "#1E1E1E",
-            "secondary_bg": "#252526",
-            "tertiary_bg": "#2D2D2D",
-            "text_primary": "#E0E0E0",
-            "text_secondary": "#A0A0A0",
-            "text_hint": "#666666",
-            "border": "#3C3C3C",
-            "border_light": "#333333",
-            "success": "#81C784",
-            "warning": "#FFB74D",
-            "error": "#E57373",
-            "info": "#64B5F6"
+            "is_custom": False,
+            "colors": {
+                "primary_color": "#64B5F6",
+                "primary_light": "#90CAF9",
+                "primary_dark": "#42A5F5",
+                "background": "#1E1E1E",
+                "secondary_bg": "#252526",
+                "tertiary_bg": "#2D2D2D",
+                "text_primary": "#E0E0E0",
+                "text_secondary": "#A0A0A0",
+                "text_hint": "#666666",
+                "border": "#3C3C3C",
+                "border_light": "#333333",
+                "success": "#81C784",
+                "warning": "#FFB74D",
+                "error": "#E57373",
+                "info": "#64B5F6"
+            }
         },
         BLUE_THEME: {
             "name": "海洋蓝主题",
             "icon": "🌊",
-            "primary_color": "#0288D1",
-            "primary_light": "#03A9F4",
-            "primary_dark": "#01579B",
-            "background": "#E1F5FE",
-            "secondary_bg": "#B3E5FC",
-            "tertiary_bg": "#81D4FA",
-            "text_primary": "#01579B",
-            "text_secondary": "#0277BD",
-            "text_hint": "#0288D1",
-            "border": "#4FC3F7",
-            "border_light": "#81D4FA",
-            "success": "#4CAF50",
-            "warning": "#FF9800",
-            "error": "#F44336",
-            "info": "#0288D1"
+            "is_custom": False,
+            "colors": {
+                "primary_color": "#0288D1",
+                "primary_light": "#03A9F4",
+                "primary_dark": "#01579B",
+                "background": "#E1F5FE",
+                "secondary_bg": "#B3E5FC",
+                "tertiary_bg": "#81D4FA",
+                "text_primary": "#01579B",
+                "text_secondary": "#0277BD",
+                "text_hint": "#0288D1",
+                "border": "#4FC3F7",
+                "border_light": "#81D4FA",
+                "success": "#4CAF50",
+                "warning": "#FF9800",
+                "error": "#F44336",
+                "info": "#0288D1"
+            }
         },
         GREEN_THEME: {
             "name": "森林绿主题",
             "icon": "🌲",
-            "primary_color": "#2E7D32",
-            "primary_light": "#388E3C",
-            "primary_dark": "#1B5E20",
-            "background": "#E8F5E9",
-            "secondary_bg": "#C8E6C9",
-            "tertiary_bg": "#A5D6A7",
-            "text_primary": "#1B5E20",
-            "text_secondary": "#2E7D32",
-            "text_hint": "#388E3C",
-            "border": "#81C784",
-            "border_light": "#A5D6A7",
-            "success": "#4CAF50",
-            "warning": "#FF9800",
-            "error": "#F44336",
-            "info": "#2196F3"
+            "is_custom": False,
+            "colors": {
+                "primary_color": "#2E7D32",
+                "primary_light": "#388E3C",
+                "primary_dark": "#1B5E20",
+                "background": "#E8F5E9",
+                "secondary_bg": "#C8E6C9",
+                "tertiary_bg": "#A5D6A7",
+                "text_primary": "#1B5E20",
+                "text_secondary": "#2E7D32",
+                "text_hint": "#388E3C",
+                "border": "#81C784",
+                "border_light": "#A5D6A7",
+                "success": "#4CAF50",
+                "warning": "#FF9800",
+                "error": "#F44336",
+                "info": "#2196F3"
+            }
+        },
+        PURPLE_THEME: {
+            "name": "优雅紫主题",
+            "icon": "💜",
+            "is_custom": False,
+            "colors": {
+                "primary_color": "#7B1FA2",
+                "primary_light": "#9C27B0",
+                "primary_dark": "#4A148C",
+                "background": "#F3E5F5",
+                "secondary_bg": "#E1BEE7",
+                "tertiary_bg": "#CE93D8",
+                "text_primary": "#4A148C",
+                "text_secondary": "#7B1FA2",
+                "text_hint": "#9C27B0",
+                "border": "#BA68C8",
+                "border_light": "#CE93D8",
+                "success": "#4CAF50",
+                "warning": "#FF9800",
+                "error": "#F44336",
+                "info": "#2196F3"
+            }
+        },
+        ORANGE_THEME: {
+            "name": "活力橙主题",
+            "icon": "🍊",
+            "is_custom": False,
+            "colors": {
+                "primary_color": "#E65100",
+                "primary_light": "#F57C00",
+                "primary_dark": "#BF360C",
+                "background": "#FFF3E0",
+                "secondary_bg": "#FFE0B2",
+                "tertiary_bg": "#FFCC80",
+                "text_primary": "#BF360C",
+                "text_secondary": "#E65100",
+                "text_hint": "#F57C00",
+                "border": "#FFB74D",
+                "border_light": "#FFCC80",
+                "success": "#4CAF50",
+                "warning": "#FF9800",
+                "error": "#F44336",
+                "info": "#2196F3"
+            }
+        },
+        PINK_THEME: {
+            "name": "浪漫粉主题",
+            "icon": "🌸",
+            "is_custom": False,
+            "colors": {
+                "primary_color": "#C2185B",
+                "primary_light": "#D81B60",
+                "primary_dark": "#880E4F",
+                "background": "#FCE4EC",
+                "secondary_bg": "#F8BBD9",
+                "tertiary_bg": "#F48FB1",
+                "text_primary": "#880E4F",
+                "text_secondary": "#C2185B",
+                "text_hint": "#D81B60",
+                "border": "#F48FB1",
+                "border_light": "#F8BBD9",
+                "success": "#4CAF50",
+                "warning": "#FF9800",
+                "error": "#F44336",
+                "info": "#2196F3"
+            }
+        },
+        TEAL_THEME: {
+            "name": "清新青主题",
+            "icon": "💎",
+            "is_custom": False,
+            "colors": {
+                "primary_color": "#00796B",
+                "primary_light": "#009688",
+                "primary_dark": "#004D40",
+                "background": "#E0F2F1",
+                "secondary_bg": "#B2DFDB",
+                "tertiary_bg": "#80CBC4",
+                "text_primary": "#004D40",
+                "text_secondary": "#00796B",
+                "text_hint": "#009688",
+                "border": "#4DB6AC",
+                "border_light": "#80CBC4",
+                "success": "#4CAF50",
+                "warning": "#FF9800",
+                "error": "#F44336",
+                "info": "#2196F3"
+            }
+        },
+        HIGH_CONTRAST_THEME: {
+            "name": "高对比度主题",
+            "icon": "🔲",
+            "is_custom": False,
+            "colors": {
+                "primary_color": "#FFFFFF",
+                "primary_light": "#FFFFFF",
+                "primary_dark": "#CCCCCC",
+                "background": "#000000",
+                "secondary_bg": "#111111",
+                "tertiary_bg": "#222222",
+                "text_primary": "#FFFFFF",
+                "text_secondary": "#FFFFFF",
+                "text_hint": "#FFFFFF",
+                "border": "#FFFFFF",
+                "border_light": "#FFFFFF",
+                "success": "#00FF00",
+                "warning": "#FFFF00",
+                "error": "#FF0000",
+                "info": "#00FFFF"
+            }
         }
     }
     
     _instance = None
     _current_theme = LIGHT_THEME
     _theme_changed = pyqtSignal(str)
+    _custom_colors = None
     
     def __new__(cls):
         if cls._instance is None:
             cls._instance = super().__new__(cls)
-            cls._instance._load_theme_setting()
+            cls._instance._initialized = False
         return cls._instance
     
     def __init__(self):
-        if not hasattr(self, '_initialized'):
-            self._initialized = True
-            self._settings = QSettings("ToolSuite", "ThemeSettings")
+        if self._initialized:
+            return
+        self._initialized = True
+        self._settings = QSettings("ToolSuite", "ThemeSettings")
+        self._load_all_settings()
+        self._theme_callbacks: list = []
     
-    def _load_theme_setting(self):
-        """加载保存的主题设置"""
-        settings = QSettings("ToolSuite", "ThemeSettings")
-        saved_theme = settings.value("current_theme", self.LIGHT_THEME)
-        if saved_theme in self.THEMES:
+    def _load_all_settings(self):
+        """加载所有主题相关设置"""
+        saved_theme = self._settings.value("current_theme", self.LIGHT_THEME)
+        if saved_theme in self.THEMES or saved_theme == self.CUSTOM_THEME:
             self._current_theme = saved_theme
+        
+        self._font_size = self._settings.value("font_size", 12, type=int)
+        self._compact_mode = self._settings.value("compact_mode", False, type=bool)
+        self._animations_enabled = self._settings.value("animations_enabled", True, type=bool)
+        self._font_family = self._settings.value("font_family", "Microsoft YaHei")
+        
+        custom_colors_str = self._settings.value("custom_colors")
+        if custom_colors_str:
+            try:
+                import json
+                self._custom_colors = json.loads(custom_colors_str)
+            except:
+                self._custom_colors = None
     
     def get_current_theme(self) -> str:
         """获取当前主题"""
@@ -136,31 +281,145 @@ class ThemeManager:
         """获取主题信息"""
         if theme_name is None:
             theme_name = self._current_theme
-        return self.THEMES.get(theme_name, self.THEMES[self.LIGHT_THEME])
+        
+        if theme_name == self.CUSTOM_THEME and self._custom_colors:
+            return {
+                "name": "自定义主题",
+                "icon": "🎨",
+                "is_custom": True,
+                "colors": self._custom_colors
+            }
+        
+        theme = self.THEMES.get(theme_name)
+        if theme:
+            return theme
+        
+        return self.THEMES[self.LIGHT_THEME]
     
     def get_all_themes(self) -> dict:
         """获取所有可用主题"""
-        return self.THEMES.copy()
+        result = self.THEMES.copy()
+        if self._custom_colors:
+            result[self.CUSTOM_THEME] = {
+                "name": "自定义主题",
+                "icon": "🎨",
+                "is_custom": True,
+                "colors": self._custom_colors
+            }
+        return result
     
     def set_theme(self, theme_name: str) -> bool:
         """设置主题"""
-        if theme_name not in self.THEMES:
+        if theme_name not in self.THEMES and theme_name != self.CUSTOM_THEME:
+            return False
+        
+        if theme_name == self.CUSTOM_THEME and not self._custom_colors:
             return False
         
         self._current_theme = theme_name
         self._settings.setValue("current_theme", theme_name)
+        self._notify_theme_changed()
         return True
+    
+    def set_custom_colors(self, colors: dict) -> bool:
+        """设置自定义主题颜色"""
+        required_keys = [
+            "primary_color", "primary_light", "primary_dark",
+            "background", "secondary_bg", "tertiary_bg",
+            "text_primary", "text_secondary", "text_hint",
+            "border", "border_light",
+            "success", "warning", "error", "info"
+        ]
+        
+        for key in required_keys:
+            if key not in colors:
+                return False
+        
+        self._custom_colors = colors.copy()
+        
+        import json
+        self._settings.setValue("custom_colors", json.dumps(colors))
+        return True
+    
+    def get_custom_colors(self) -> dict:
+        """获取自定义主题颜色"""
+        if self._custom_colors:
+            return self._custom_colors.copy()
+        return {}
+    
+    def has_custom_theme(self) -> bool:
+        """检查是否有自定义主题"""
+        return self._custom_colors is not None
+    
+    def get_appearance_settings(self) -> dict:
+        """获取外观设置"""
+        return {
+            "font_size": self._font_size,
+            "compact_mode": self._compact_mode,
+            "animations_enabled": self._animations_enabled,
+            "font_family": self._font_family
+        }
+    
+    def set_appearance_settings(self, settings: dict) -> bool:
+        """设置外观设置"""
+        if "font_size" in settings:
+            self._font_size = settings["font_size"]
+            self._settings.setValue("font_size", self._font_size)
+        
+        if "compact_mode" in settings:
+            self._compact_mode = settings["compact_mode"]
+            self._settings.setValue("compact_mode", self._compact_mode)
+        
+        if "animations_enabled" in settings:
+            self._animations_enabled = settings["animations_enabled"]
+            self._settings.setValue("animations_enabled", self._animations_enabled)
+        
+        if "font_family" in settings:
+            self._font_family = settings["font_family"]
+            self._settings.setValue("font_family", self._font_family)
+        
+        self._notify_theme_changed()
+        return True
+    
+    def _notify_theme_changed(self):
+        """通知主题变化"""
+        for callback in self._theme_callbacks:
+            try:
+                callback()
+            except Exception as e:
+                print(f"主题回调执行失败: {e}")
+    
+    def add_theme_change_callback(self, callback):
+        """添加主题变化回调"""
+        if callback not in self._theme_callbacks:
+            self._theme_callbacks.append(callback)
+    
+    def remove_theme_change_callback(self, callback):
+        """移除主题变化回调"""
+        if callback in self._theme_callbacks:
+            self._theme_callbacks.remove(callback)
     
     def generate_stylesheet(self, theme_name: str = None) -> str:
         """生成主题样式表"""
-        theme = self.get_theme_info(theme_name)
+        theme_info = self.get_theme_info(theme_name)
+        theme = theme_info.get('colors', theme_info)
+        
+        appearance = self.get_appearance_settings()
+        font_size = appearance.get('font_size', 12)
+        font_family = appearance.get('font_family', 'Microsoft YaHei')
+        compact_mode = appearance.get('compact_mode', False)
+        
+        padding_small = "4px" if compact_mode else "8px"
+        padding_medium = "6px" if compact_mode else "10px"
+        padding_large = "8px 16px" if compact_mode else "10px 20px"
         
         stylesheet = f"""
         /* 全局样式 */
         QWidget {{
             background-color: {theme['background']};
             color: {theme['text_primary']};
-            font-family: "Microsoft YaHei", "Segoe UI", Arial, sans-serif;
+            font-family: "{font_family}", "Segoe UI", Arial, sans-serif;
+            font-size: {font_size}px;
         }}
         
         /* 主窗口和容器 */
@@ -644,19 +903,21 @@ class CoreFrameworkModule(BaseModule):
         """
         创建主题卡片
         """
+        colors = theme_info.get('colors', theme_info)
+        
         card = QFrame()
         card.setObjectName(f"themeCard_{theme_id}")
         card.setCursor(Qt.CursorShape.PointingHandCursor)
         
         card_style = f"""
         #themeCard_{theme_id} {{
-            background-color: {theme_info['secondary_bg']};
-            border: 3px solid {'#1565C0' if is_selected else theme_info['border']};
+            background-color: {colors['secondary_bg']};
+            border: 3px solid {'#1565C0' if is_selected else colors['border']};
             border-radius: 12px;
             padding: 15px;
         }}
         #themeCard_{theme_id}:hover {{
-            border-color: {theme_info['primary_color']};
+            border-color: {colors['primary_color']};
         }}
         """
         card.setStyleSheet(card_style)
@@ -665,21 +926,21 @@ class CoreFrameworkModule(BaseModule):
         layout.setContentsMargins(15, 15, 15, 15)
         layout.setSpacing(10)
         
-        icon_label = QLabel(theme_info['icon'])
+        icon_label = QLabel(theme_info.get('icon', '🎨'))
         icon_label.setFont(QFont("Microsoft YaHei", 32))
         icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(icon_label)
         
-        name_label = QLabel(theme_info['name'])
+        name_label = QLabel(theme_info.get('name', theme_id))
         name_label.setFont(QFont("Microsoft YaHei", 12, QFont.Weight.Bold))
-        name_label.setStyleSheet(f"color: {theme_info['text_primary']};")
+        name_label.setStyleSheet(f"color: {colors['text_primary']};")
         name_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(name_label)
         
         preview_frame = QFrame()
         preview_frame.setStyleSheet(f"""
             QFrame {{
-                background-color: {theme_info['primary_color']};
+                background-color: {colors['primary_color']};
                 border-radius: 6px;
                 border: none;
             }}
@@ -692,7 +953,7 @@ class CoreFrameworkModule(BaseModule):
         radio_btn.setFont(QFont("Microsoft YaHei", 10))
         radio_btn.setChecked(is_selected)
         radio_btn.setProperty("theme_id", theme_id)
-        radio_btn.setStyleSheet(f"color: {theme_info['text_primary']};")
+        radio_btn.setStyleSheet(f"color: {colors['text_primary']};")
         self._theme_button_group.addButton(radio_btn)
         layout.addWidget(radio_btn, alignment=Qt.AlignmentFlag.AlignCenter)
         
@@ -710,6 +971,8 @@ class CoreFrameworkModule(BaseModule):
         layout.setSpacing(15)
         layout.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
         
+        appearance_settings = self._theme_manager.get_appearance_settings()
+        
         font_size_label = QLabel("字体大小:")
         font_size_label.setFont(QFont("Microsoft YaHei", 11))
         
@@ -717,12 +980,12 @@ class CoreFrameworkModule(BaseModule):
         self._font_size_slider = QSlider(Qt.Orientation.Horizontal)
         self._font_size_slider.setMinimum(10)
         self._font_size_slider.setMaximum(18)
-        self._font_size_slider.setValue(12)
+        self._font_size_slider.setValue(appearance_settings.get('font_size', 12))
         self._font_size_slider.setTickPosition(QSlider.TickPosition.TicksBelow)
         self._font_size_slider.setTickInterval(2)
         self._font_size_slider.setMinimumWidth(200)
         
-        self._font_size_value = QLabel("12")
+        self._font_size_value = QLabel(str(appearance_settings.get('font_size', 12)))
         self._font_size_value.setFont(QFont("Microsoft YaHei", 11, QFont.Weight.Bold))
         self._font_size_value.setMinimumWidth(30)
         
@@ -741,6 +1004,7 @@ class CoreFrameworkModule(BaseModule):
         
         self._compact_mode_check = QCheckBox("使用更紧凑的布局")
         self._compact_mode_check.setFont(QFont("Microsoft YaHei", 10))
+        self._compact_mode_check.setChecked(appearance_settings.get('compact_mode', False))
         
         layout.addRow(compact_mode_label, self._compact_mode_check)
         
@@ -749,7 +1013,7 @@ class CoreFrameworkModule(BaseModule):
         
         self._animations_check = QCheckBox("启用UI动画效果")
         self._animations_check.setFont(QFont("Microsoft YaHei", 10))
-        self._animations_check.setChecked(True)
+        self._animations_check.setChecked(appearance_settings.get('animations_enabled', True))
         
         layout.addRow(animations_label, self._animations_check)
         
@@ -764,13 +1028,20 @@ class CoreFrameworkModule(BaseModule):
             CustomMessageBox.warning(None, "提示", "请先选择一个主题！")
             return
         
+        appearance_settings = {
+            "font_size": self._font_size_slider.value(),
+            "compact_mode": self._compact_mode_check.isChecked(),
+            "animations_enabled": self._animations_check.isChecked()
+        }
+        self._theme_manager.set_appearance_settings(appearance_settings)
+        
         theme_id = selected_button.property("theme_id")
         if self._theme_manager.set_theme(theme_id):
             theme_info = self._theme_manager.get_theme_info(theme_id)
             CustomMessageBox.success(
                 None, 
                 "主题已应用", 
-                f"成功切换到 {theme_info['name']}！\n\n请重启应用程序以完全应用主题效果。"
+                f"成功切换到 {theme_info['name']}！\n\n外观设置已保存。"
             )
         else:
             CustomMessageBox.error(None, "错误", "主题切换失败！")
