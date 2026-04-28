@@ -550,7 +550,7 @@ class FileRenamerModule(BaseModule):
         option_layout = QHBoxLayout()
         option_layout.setSpacing(8)
 
-        self._delete_mode_group = QButtonGroup(self)
+        self._delete_mode_group = QButtonGroup()
         self._delete_range_radio = QRadioButton("删除范围")
         self._delete_range_radio.setChecked(True)
         self._delete_range_radio.setStyleSheet("""
@@ -905,7 +905,7 @@ class FileRenamerModule(BaseModule):
         option_layout = QHBoxLayout()
         option_layout.setSpacing(10)
 
-        self._case_mode_group = QButtonGroup(self)
+        self._case_mode_group = QButtonGroup()
         self._case_upper_radio = QRadioButton("全部大写")
         self._case_upper_radio.setChecked(True)
         self._case_upper_radio.setStyleSheet("""
@@ -997,7 +997,7 @@ class FileRenamerModule(BaseModule):
         option_layout = QHBoxLayout()
         option_layout.setSpacing(10)
 
-        self._extension_mode_group = QButtonGroup(self)
+        self._extension_mode_group = QButtonGroup()
         self._extension_change_radio = QRadioButton("修改为:")
         self._extension_change_radio.setChecked(True)
         self._extension_change_radio.setStyleSheet("""
