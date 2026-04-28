@@ -526,7 +526,7 @@ class CoreFrameworkModule(BaseModule):
     
     @property
     def name(self) -> str:
-        return "核心框架"
+        return "主题设置"
     
     @property
     def description(self) -> str:
@@ -617,7 +617,7 @@ class CoreFrameworkModule(BaseModule):
         desc_label.setStyleSheet("color: #666666;")
         layout.addWidget(desc_label)
         
-        self._theme_button_group = QButtonGroup(self)
+        self._theme_button_group = QButtonGroup(group)
         themes_layout = QHBoxLayout()
         themes_layout.setSpacing(15)
         
