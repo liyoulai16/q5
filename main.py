@@ -20,7 +20,8 @@ def main():
     
     if login_dialog.exec() == LoginDialog.DialogCode.Accepted:
         if login_dialog.is_authenticated():
-            window = MainWindow()
+            current_user = login_dialog.get_current_user()
+            window = MainWindow(current_user)
             window.show()
             
             sys.exit(app.exec())

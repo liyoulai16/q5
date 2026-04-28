@@ -6,17 +6,20 @@
 
 from PyQt6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                              QStackedWidget, QTreeWidget, QTreeWidgetItem,
-                             QSplitter, QMessageBox, QLabel, QFrame, QHBoxLayout)
+                             QSplitter, QMessageBox, QLabel, QFrame, QHBoxLayout,
+                             QPushButton)
 from PyQt6.QtCore import Qt, QSize
 from PyQt6.QtGui import QFont, QIcon, QColor, QBrush
 
 from modules.module_manager import ModuleManager, ModuleCategory
 from database.database_manager import DatabaseManager
+from core.change_password_dialog import ChangePasswordDialog
 
 
 class MainWindow(QMainWindow):
-    def __init__(self):
+    def __init__(self, current_user: str = None):
         super().__init__()
+        self._current_user = current_user
         self.setWindowTitle("多功能桌面效率工具套件")
         self.setMinimumSize(1000, 700)
         self.resize(1200, 800)
@@ -44,6 +47,8 @@ class MainWindow(QMainWindow):
         splitter.addWidget(self.content_stack)
         
         splitter.setSizes([280, 920])
+        splitter.setStretchFactor(0, 0)
+        splitter.setStretchFactor(1, 1)
         
         main_layout.addWidget(splitter)
         
@@ -115,6 +120,58 @@ class MainWindow(QMainWindow):
         self.module_tree.expandAll()
         
         layout.addWidget(self.module_tree, 1)
+        
+        user_frame = QFrame()
+        user_frame.setStyleSheet("""
+            QFrame {
+                background-color: #f0f0f0;
+                border-top: 1px solid #dee2e6;
+            }
+        """)
+        user_layout = QVBoxLayout(user_frame)
+        user_layout.setContentsMargins(15, 10, 15, 10)
+        user_layout.setSpacing(8)
+        
+        user_info_layout = QHBoxLayout()
+        user_info_layout.setSpacing(10)
+        
+        user_icon_label = QLabel("👤")
+        user_icon_label.setFont(QFont("Microsoft YaHei", 14))
+        user_info_layout.addWidget(user_icon_label)
+        
+        user_text = f"当前用户: {self._current_user}" if self._current_user else "当前用户: 未登录"
+        self._user_label = QLabel(user_text)
+        self._user_label.setFont(QFont("Microsoft YaHei", 10, QFont.Weight.Bold))
+        self._user_label.setStyleSheet("color: #333333;")
+        user_info_layout.addWidget(self._user_label)
+        user_info_layout.addStretch()
+        
+        user_layout.addLayout(user_info_layout)
+        
+        self._change_password_btn = QPushButton("🔑 修改密码")
+        self._change_password_btn.setMinimumHeight(35)
+        self._change_password_btn.setFont(QFont("Microsoft YaHei", 10))
+        self._change_password_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._change_password_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #1565C0;
+                color: white;
+                border: none;
+                border-radius: 6px;
+                padding: 6px 12px;
+            }
+            QPushButton:hover {
+                background-color: #1976D2;
+            }
+            QPushButton:pressed {
+                background-color: #0D47A1;
+            }
+        """)
+        self._change_password_btn.clicked.connect(self._on_change_password)
+        
+        user_layout.addWidget(self._change_password_btn)
+        
+        layout.addWidget(user_frame)
         
         return panel
     
@@ -190,6 +247,19 @@ class MainWindow(QMainWindow):
             return module_widget
         
         return None
+    
+    def _on_change_password(self):
+        """
+        修改密码按钮点击事件
+        """
+        if not self._current_user:
+            QMessageBox.warning(self, "警告", "无法获取当前用户信息！")
+            return
+        
+        dialog = ChangePasswordDialog(self._current_user, self)
+        if dialog.exec() == ChangePasswordDialog.DialogCode.Accepted:
+            QMessageBox.information(self, "提示", "密码修改成功，请重新登录。")
+            self.close()
     
     def closeEvent(self, event):
         reply = QMessageBox.question(self, '确认退出',
