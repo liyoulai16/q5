@@ -19,15 +19,18 @@ class ModuleCategory:
     """
     OFFICE_TOOLS = "office_tools"
     LIFE_TOOLS = "life_tools"
+    DATA_MANAGEMENT = "data_management"
     
     CATEGORY_NAMES = {
         OFFICE_TOOLS: "办公工具",
-        LIFE_TOOLS: "生活工具"
+        LIFE_TOOLS: "生活工具",
+        DATA_MANAGEMENT: "数据管理"
     }
     
     CATEGORY_ICONS = {
         OFFICE_TOOLS: "📋",
-        LIFE_TOOLS: "🏠"
+        LIFE_TOOLS: "🏠",
+        DATA_MANAGEMENT: "🗄️"
     }
 
 
