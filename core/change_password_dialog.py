@@ -79,10 +79,10 @@ class ChangePasswordDialog(QDialog):
         """)
         content_layout = QVBoxLayout(content_frame)
         content_layout.setContentsMargins(40, 25, 40, 25)
-        content_layout.setSpacing(25)
+        content_layout.setSpacing(35)
         
         old_password_layout = QVBoxLayout()
-        old_password_layout.setSpacing(12)
+        old_password_layout.setSpacing(15)
         
         old_password_label = QLabel("旧密码")
         old_password_label.setFont(QFont("Microsoft YaHei", 11, QFont.Weight.Bold))
@@ -112,7 +112,7 @@ class ChangePasswordDialog(QDialog):
         content_layout.addLayout(old_password_layout)
         
         new_password_layout = QVBoxLayout()
-        new_password_layout.setSpacing(12)
+        new_password_layout.setSpacing(15)
         
         new_password_label = QLabel("新密码")
         new_password_label.setFont(QFont("Microsoft YaHei", 11, QFont.Weight.Bold))
@@ -142,7 +142,7 @@ class ChangePasswordDialog(QDialog):
         content_layout.addLayout(new_password_layout)
         
         confirm_password_layout = QVBoxLayout()
-        confirm_password_layout.setSpacing(12)
+        confirm_password_layout.setSpacing(15)
         
         confirm_password_label = QLabel("确认新密码")
         confirm_password_label.setFont(QFont("Microsoft YaHei", 11, QFont.Weight.Bold))
@@ -171,7 +171,7 @@ class ChangePasswordDialog(QDialog):
         
         content_layout.addLayout(confirm_password_layout)
         
-        content_layout.addSpacerItem(QSpacerItem(20, 15, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed))
+        content_layout.addSpacerItem(QSpacerItem(20, 20, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed))
         
         btn_layout = QHBoxLayout()
         btn_layout.setSpacing(15)
