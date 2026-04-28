@@ -184,6 +184,37 @@ class DatabaseManager:
             (username,)
         ) > 0
     
+    def change_password(self, username: str, old_password: str, new_password: str) -> bool:
+        """
+        修改用户密码
+        首先验证旧密码，然后设置新密码
+        """
+        if not self.verify_password(username, old_password):
+            return False
+        
+        return self._set_password(username, new_password)
+    
+    def _set_password(self, username: str, new_password: str) -> bool:
+        """
+        直接设置用户密码（用于密码重置）
+        """
+        salt = secrets.token_hex(16)
+        password_hash = self._hash_password(new_password, salt)
+        
+        from datetime import datetime
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        return self.update(
+            'users',
+            {
+                'password_hash': password_hash,
+                'salt': salt,
+                'updated_at': now
+            },
+            'username = ?',
+            (username,)
+        ) > 0
+    
     def _create_passwords_table(self):
         """
         创建密码管理表
