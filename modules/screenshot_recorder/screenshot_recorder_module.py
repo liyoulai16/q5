@@ -184,16 +184,16 @@ class ScreenshotWorker(QObject):
                 self.finished.emit(False, "", "无法获取屏幕信息")
                 return
             
-            if self._capture_mode == "fullscreen":
+            if self._capture_mode == "fullscreen" or self._capture_mode == "window":
                 pixmap = screen.grabWindow(0)
             elif self._capture_mode == "area" and self._selected_rect:
-                pixmap = screen.grabWindow(0, 
-                    self._selected_rect.x(), 
+                full_pixmap = screen.grabWindow(0)
+                pixmap = full_pixmap.copy(
+                    self._selected_rect.x(),
                     self._selected_rect.y(),
                     self._selected_rect.width(),
-                    self._selected_rect.height())
-            elif self._capture_mode == "window":
-                pixmap = screen.grabWindow(0)
+                    self._selected_rect.height()
+                )
             else:
                 pixmap = screen.grabWindow(0)
             
@@ -277,11 +277,13 @@ class RecorderWorker(QObject):
                 if self._capture_mode == "fullscreen":
                     pixmap = screen.grabWindow(0)
                 elif self._capture_mode == "area" and self._selected_rect:
-                    pixmap = screen.grabWindow(0,
+                    full_pixmap = screen.grabWindow(0)
+                    pixmap = full_pixmap.copy(
                         self._selected_rect.x(),
                         self._selected_rect.y(),
                         self._selected_rect.width(),
-                        self._selected_rect.height())
+                        self._selected_rect.height()
+                    )
                 else:
                     pixmap = screen.grabWindow(0)
                 
