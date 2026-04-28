@@ -6,7 +6,9 @@
 """
 
 import os
+import sys
 import time
+import threading
 from datetime import datetime
 from typing import Optional, List, Dict, Any
 
@@ -14,10 +16,9 @@ from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
                              QLabel, QSplitter, QListWidget, QListWidgetItem,
                              QGroupBox, QComboBox, QSpinBox, QCheckBox, QFileDialog,
                              QMessageBox, QTabWidget, QLineEdit, QTextEdit, QFrame,
-                             QProgressBar, QSlider)
-from PyQt6.QtCore import Qt, QTimer, QRect, QPoint, QSize, pyqtSignal, QObject
-from PyQt6.QtGui import QFont, QPixmap, QImage, QPainter, QColor, QPen, QCursor
-from PyQt6.QtGui import QGuiApplication
+                             QProgressBar, QSlider, QApplication)
+from PyQt6.QtCore import Qt, QTimer, QRect, QPoint, QSize, pyqtSignal, QObject, QMetaObject, Q_ARG
+from PyQt6.QtGui import QFont, QPixmap, QImage, QPainter, QColor, QPen, QCursor, QGuiApplication, QScreen
 
 from modules.module_manager import BaseModule, ModuleCategory
 from database.database_manager import DatabaseManager
@@ -34,47 +35,84 @@ class CaptureAreaSelector(QWidget):
     area_selected = pyqtSignal(QRect)
     selection_cancelled = pyqtSignal()
     
-    def __init__(self):
-        super().__init__()
+    def __init__(self, parent=None):
+        super().__init__(parent)
         self._start_pos = None
         self._current_pos = None
         self._is_selecting = False
         self._selected_rect = None
+        self._original_pixmap = None
+        self._screen_geometry = None
         self._setup_ui()
     
     def _setup_ui(self):
-        self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.WindowStaysOnTopHint)
-        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, False)
-        self.setStyleSheet("background-color: rgba(0, 0, 0, 30);")
+        self.setWindowFlags(Qt.WindowType.FramelessWindowHint | 
+                           Qt.WindowType.WindowStaysOnTopHint |
+                           Qt.WindowType.Tool)
+        
         self.setCursor(Qt.CursorShape.CrossCursor)
+        self.setMouseTracking(True)
         
         screen = QGuiApplication.primaryScreen()
         if screen:
-            self.setGeometry(screen.geometry())
+            self._screen_geometry = screen.geometry()
+            self.setGeometry(self._screen_geometry)
+            
+            self._original_pixmap = screen.grabWindow(0)
     
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         
-        painter.fillRect(self.rect(), QColor(0, 0, 0, 30))
+        if self._original_pixmap and not self._original_pixmap.isNull():
+            painter.drawPixmap(self.rect(), self._original_pixmap)
+        
+        overlay_color = QColor(0, 0, 0, 100)
+        painter.fillRect(self.rect(), overlay_color)
         
         if self._start_pos and self._current_pos:
             selection_rect = QRect(self._start_pos, self._current_pos).normalized()
             
-            painter.fillRect(selection_rect, QColor(255, 255, 255, 0))
+            if self._original_pixmap and not self._original_pixmap.isNull():
+                source_rect = QRect(
+                    selection_rect.x(),
+                    selection_rect.y(),
+                    selection_rect.width(),
+                    selection_rect.height()
+                )
+                painter.drawPixmap(selection_rect, self._original_pixmap, source_rect)
             
             pen = QPen(QColor(255, 100, 100), 2, Qt.PenStyle.SolidLine)
             painter.setPen(pen)
             painter.drawRect(selection_rect)
             
             size_text = f"{selection_rect.width()} x {selection_rect.height()}"
-            text_rect = QRect(selection_rect.topLeft(), QSize(150, 30))
-            text_rect.translate(5, 5)
             
-            painter.fillRect(text_rect, QColor(0, 0, 0, 150))
+            text_width = 150
+            text_height = 30
+            text_x = selection_rect.x() + 5
+            text_y = selection_rect.y() + 5
+            
+            if text_x + text_width > self.width():
+                text_x = self.width() - text_width - 5
+            if text_y + text_height > self.height():
+                text_y = selection_rect.y() - text_height - 5
+            
+            text_rect = QRect(text_x, text_y, text_width, text_height)
+            
+            painter.fillRect(text_rect, QColor(0, 0, 0, 180))
             painter.setPen(QColor(255, 255, 255))
-            painter.setFont(QFont("Microsoft YaHei", 10))
+            painter.setFont(QFont("Microsoft YaHei", 10, QFont.Weight.Bold))
             painter.drawText(text_rect, Qt.AlignmentFlag.AlignCenter, size_text)
+        
+        instruction_text = "按住鼠标左键拖动选择区域，按 ESC 取消"
+        font = QFont("Microsoft YaHei", 12, QFont.Weight.Bold)
+        painter.setFont(font)
+        text_rect = QRect(0, 0, self.width(), 50)
+        
+        painter.fillRect(text_rect, QColor(0, 0, 0, 150))
+        painter.setPen(QColor(255, 255, 255))
+        painter.drawText(text_rect, Qt.AlignmentFlag.AlignCenter, instruction_text)
     
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
@@ -101,6 +139,11 @@ class CaptureAreaSelector(QWidget):
         if event.key() == Qt.Key.Key_Escape:
             self.selection_cancelled.emit()
             self.close()
+    
+    def showEvent(self, event):
+        super().showEvent(event)
+        self.activateWindow()
+        self.raise_()
 
 
 class ScreenshotWorker(QObject):
@@ -161,7 +204,6 @@ class ScreenshotWorker(QObject):
                 self._save_path = os.path.join(default_dir, f"screenshot_{timestamp}.{self._file_format.lower()}")
             
             image = pixmap.toImage()
-            buffer = QImage()
             
             if self._file_format.upper() == "PNG":
                 image.save(self._save_path, "PNG")
@@ -175,6 +217,8 @@ class ScreenshotWorker(QObject):
             self.finished.emit(True, self._save_path, "截图成功")
             
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             self.finished.emit(False, "", f"截图失败: {str(e)}")
 
 
@@ -223,7 +267,6 @@ class RecorderWorker(QObject):
             
             frames = []
             frame_interval = 1.0 / self._fps
-            total_frames = self._duration * self._fps if self._duration > 0 else float('inf')
             
             start_time = time.time()
             frame_idx = 0
@@ -286,6 +329,8 @@ class RecorderWorker(QObject):
                 self.finished.emit(False, "", "没有捕获到任何帧")
                 
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             self.finished.emit(False, "", f"录制失败: {str(e)}")
     
     def stop_recording(self):
@@ -312,7 +357,7 @@ class ScreenshotRecorderModule(BaseModule):
     
     @property
     def version(self) -> str:
-        return "1.0.0"
+        return "1.0.1"
     
     @property
     def category(self) -> str:
@@ -334,11 +379,21 @@ class ScreenshotRecorderModule(BaseModule):
         self._screenshot_worker = ScreenshotWorker()
         self._recorder_worker = RecorderWorker()
         
+        self._screenshot_worker.finished.connect(self._on_screenshot_finished)
+        self._screenshot_worker.progress.connect(self._on_screenshot_progress)
+        
+        self._recorder_worker.finished.connect(self._on_recording_finished)
+        self._recorder_worker.progress.connect(self._on_recording_progress)
+        self._recorder_worker.frame_captured.connect(self._on_frame_captured)
+        
         self._is_recording = False
         self._recording_timer = QTimer()
+        self._recording_timer.timeout.connect(self._update_recording_timer)
         self._recording_start_time = None
         self._selected_capture_rect = None
         self._area_selector = None
+        self._screenshot_in_progress = False
+        self._recording_thread = None
     
     def _on_unload(self) -> None:
         """
@@ -364,6 +419,7 @@ class ScreenshotRecorderModule(BaseModule):
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
         """
+        
         self._db.execute(create_table_sql)
         
         create_index_sql = "CREATE INDEX IF NOT EXISTS idx_screenshots_created_at ON screenshots(created_at)"
@@ -388,6 +444,7 @@ class ScreenshotRecorderModule(BaseModule):
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
         """
+        
         self._db.execute(create_table_sql)
         
         create_index_sql = "CREATE INDEX IF NOT EXISTS idx_recordings_created_at ON recordings(created_at)"
@@ -1162,6 +1219,10 @@ class ScreenshotRecorderModule(BaseModule):
         """
         执行截图
         """
+        if self._screenshot_in_progress:
+            QMessageBox.warning(None, "警告", "截图操作正在进行中，请稍候...")
+            return
+        
         mode_text = self._screenshot_mode_combo.currentText()
         if mode_text == "全屏截图":
             capture_mode = "fullscreen"
@@ -1190,18 +1251,19 @@ class ScreenshotRecorderModule(BaseModule):
             delay
         )
         
-        self._screenshot_worker.finished.connect(self._on_screenshot_finished)
-        self._screenshot_worker.progress.connect(self._on_screenshot_progress)
-        
+        self._screenshot_in_progress = True
         self._screenshot_status_label.setText(f"正在截图... (延迟 {delay} 秒)" if delay > 0 else "正在截图...")
         self._capture_btn.setEnabled(False)
         
-        self._screenshot_worker.capture()
+        screenshot_thread = threading.Thread(target=self._screenshot_worker.capture)
+        screenshot_thread.daemon = True
+        screenshot_thread.start()
     
     def _on_screenshot_progress(self, remaining):
         self._screenshot_status_label.setText(f"截图倒计时: {remaining} 秒...")
     
     def _on_screenshot_finished(self, success: bool, file_path: str, message: str):
+        self._screenshot_in_progress = False
         self._capture_btn.setEnabled(True)
         
         if success:
@@ -1229,6 +1291,8 @@ class ScreenshotRecorderModule(BaseModule):
                 self._refresh_history_list()
                 
             except Exception as e:
+                import traceback
+                traceback.print_exc()
                 self._screenshot_status_label.setText(f"保存记录失败: {str(e)}")
         else:
             self._screenshot_status_label.setText(message)
@@ -1238,13 +1302,22 @@ class ScreenshotRecorderModule(BaseModule):
         """
         选择截图区域
         """
+        if self._area_selector:
+            try:
+                self._area_selector.close()
+            except:
+                pass
+        
         self._area_selector = CaptureAreaSelector()
         self._area_selector.area_selected.connect(self._on_area_selected)
         self._area_selector.selection_cancelled.connect(self._on_area_selection_cancelled)
         self._area_selector.showFullScreen()
+        self._area_selector.activateWindow()
+        self._area_selector.raise_()
     
     def _on_area_selected(self, rect: QRect):
-        self._selected_capture_rect = rect
+        print(f"选择的区域: x={rect.x()}, y={rect.y()}, width={rect.width()}, height={rect.height()}")
+        self._selected_capture_rect = QRect(rect)
         self._preview_label.setText(f"所选区域: {rect.width()} x {rect.height()}")
         self._preview_label.setStyleSheet("color: #4CAF50;")
     
@@ -1256,13 +1329,22 @@ class ScreenshotRecorderModule(BaseModule):
         """
         选择录屏区域
         """
+        if self._area_selector:
+            try:
+                self._area_selector.close()
+            except:
+                pass
+        
         self._area_selector = CaptureAreaSelector()
         self._area_selector.area_selected.connect(self._on_recording_area_selected)
         self._area_selector.selection_cancelled.connect(self._on_recording_area_cancelled)
         self._area_selector.showFullScreen()
+        self._area_selector.activateWindow()
+        self._area_selector.raise_()
     
     def _on_recording_area_selected(self, rect: QRect):
-        self._selected_capture_rect = rect
+        print(f"选择的录制区域: x={rect.x()}, y={rect.y()}, width={rect.width()}, height={rect.height()}")
+        self._selected_capture_rect = QRect(rect)
     
     def _on_recording_area_cancelled(self):
         pass
@@ -1271,6 +1353,10 @@ class ScreenshotRecorderModule(BaseModule):
         """
         开始录制
         """
+        if self._is_recording:
+            QMessageBox.warning(None, "警告", "录制正在进行中...")
+            return
+        
         mode_text = self._recording_mode_combo.currentText()
         if mode_text == "全屏录制":
             capture_mode = "fullscreen"
@@ -1295,13 +1381,8 @@ class ScreenshotRecorderModule(BaseModule):
             duration
         )
         
-        self._recorder_worker.finished.connect(self._on_recording_finished)
-        self._recorder_worker.progress.connect(self._on_recording_progress)
-        self._recorder_worker.frame_captured.connect(self._on_frame_captured)
-        
         self._is_recording = True
         self._recording_start_time = time.time()
-        self._recording_timer.timeout.connect(self._update_recording_timer)
         self._recording_timer.start(1000)
         
         self._start_recording_btn.setEnabled(False)
@@ -1309,10 +1390,9 @@ class ScreenshotRecorderModule(BaseModule):
         self._recording_status_label.setText("正在录制...")
         self._recording_status_label.setStyleSheet("color: #f44336; font-weight: bold;")
         
-        import threading
-        recording_thread = threading.Thread(target=self._recorder_worker.start_recording)
-        recording_thread.daemon = True
-        recording_thread.start()
+        self._recording_thread = threading.Thread(target=self._recorder_worker.start_recording)
+        self._recording_thread.daemon = True
+        self._recording_thread.start()
     
     def _on_stop_recording(self):
         """
@@ -1353,7 +1433,6 @@ class ScreenshotRecorderModule(BaseModule):
     
     def _on_recording_finished(self, success: bool, file_path: str, message: str):
         self._is_recording = False
-        self._recording_timer.stop()
         
         self._start_recording_btn.setEnabled(True)
         self._stop_recording_btn.setEnabled(False)
@@ -1367,12 +1446,18 @@ class ScreenshotRecorderModule(BaseModule):
                 if self._recording_start_time:
                     duration = int(time.time() - self._recording_start_time)
                 
+                width = 0
+                height = 0
+                if self._selected_capture_rect:
+                    width = self._selected_capture_rect.width()
+                    height = self._selected_capture_rect.height()
+                
                 self._db.insert('recordings', {
                     'filename': filename,
                     'file_path': file_path,
                     'file_size': file_size,
-                    'width': self._selected_capture_rect.width() if self._selected_capture_rect else 0,
-                    'height': self._selected_capture_rect.height() if self._selected_capture_rect else 0,
+                    'width': width,
+                    'height': height,
                     'duration': duration,
                     'fps': int(self._fps_combo.currentText()),
                     'capture_mode': self._recording_mode_combo.currentText(),
@@ -1386,6 +1471,8 @@ class ScreenshotRecorderModule(BaseModule):
                 self._refresh_history_list()
                 
             except Exception as e:
+                import traceback
+                traceback.print_exc()
                 self._recording_status_label.setText(f"保存记录失败: {str(e)}")
                 self._recording_status_label.setStyleSheet("color: #f44336;")
         else:
