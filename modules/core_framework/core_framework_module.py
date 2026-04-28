@@ -863,32 +863,115 @@ class CoreFrameworkModule(BaseModule):
     def _create_theme_group(self) -> QGroupBox:
         """
         创建主题设置组
+        使用两行网格布局，支持滚动
         """
         group = QGroupBox("🎨 主题设置")
         group.setFont(QFont("Microsoft YaHei", 12, QFont.Weight.Bold))
         
+        group.setStyleSheet("""
+            QGroupBox {
+                font-weight: bold;
+                border: 2px solid #E0E0E0;
+                border-radius: 10px;
+                margin-top: 25px;
+                padding-top: 15px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 20px;
+                top: -15px;
+                padding: 5px 15px;
+                background-color: transparent;
+            }
+        """)
+        
         layout = QVBoxLayout(group)
-        layout.setContentsMargins(20, 25, 20, 20)
+        layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(15)
         
         desc_label = QLabel("选择您喜欢的主题风格，应用程序将立即切换到所选主题。")
         desc_label.setFont(QFont("Microsoft YaHei", 10))
-        desc_label.setStyleSheet("color: #666666;")
+        desc_label.setStyleSheet("color: #666666; padding: 5px;")
         layout.addWidget(desc_label)
         
-        self._theme_button_group = QButtonGroup(group)
-        themes_layout = QHBoxLayout()
-        themes_layout.setSpacing(15)
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        scroll_area.setStyleSheet("""
+            QScrollArea {
+                border: 1px solid #E0E0E0;
+                border-radius: 8px;
+                background-color: #FAFAFA;
+            }
+            QScrollBar:horizontal {
+                background-color: #F5F5F5;
+                height: 14px;
+                border-radius: 7px;
+                margin: 3px;
+            }
+            QScrollBar::handle:horizontal {
+                background-color: #BDBDBD;
+                border-radius: 6px;
+                min-width: 40px;
+            }
+            QScrollBar::handle:horizontal:hover {
+                background-color: #9E9E9E;
+            }
+            QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
+                width: 0px;
+            }
+            QScrollBar:vertical {
+                background-color: #F5F5F5;
+                width: 14px;
+                border-radius: 7px;
+                margin: 3px;
+            }
+            QScrollBar::handle:vertical {
+                background-color: #BDBDBD;
+                border-radius: 6px;
+                min-height: 40px;
+            }
+            QScrollBar::handle:vertical:hover {
+                background-color: #9E9E9E;
+            }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+                height: 0px;
+            }
+        """)
         
+        scroll_content = QWidget()
+        scroll_layout = QVBoxLayout(scroll_content)
+        scroll_layout.setContentsMargins(15, 15, 15, 15)
+        scroll_layout.setSpacing(15)
+        
+        self._theme_button_group = QButtonGroup(group)
         current_theme = self._theme_manager.get_current_theme()
         themes = self._theme_manager.get_all_themes()
+        theme_list = list(themes.items())
         
-        for theme_id, theme_info in themes.items():
+        row1_layout = QHBoxLayout()
+        row1_layout.setSpacing(15)
+        for i in range(min(5, len(theme_list))):
+            theme_id, theme_info = theme_list[i]
             theme_card = self._create_theme_card(theme_id, theme_info, theme_id == current_theme)
-            themes_layout.addWidget(theme_card)
+            row1_layout.addWidget(theme_card)
+        row1_layout.addStretch()
+        scroll_layout.addLayout(row1_layout)
         
-        themes_layout.addStretch()
-        layout.addLayout(themes_layout)
+        if len(theme_list) > 5:
+            row2_layout = QHBoxLayout()
+            row2_layout.setSpacing(15)
+            for i in range(5, len(theme_list)):
+                theme_id, theme_info = theme_list[i]
+                theme_card = self._create_theme_card(theme_id, theme_info, theme_id == current_theme)
+                row2_layout.addWidget(theme_card)
+            row2_layout.addStretch()
+            scroll_layout.addLayout(row2_layout)
+        
+        scroll_layout.addStretch()
+        scroll_area.setWidget(scroll_content)
+        layout.addWidget(scroll_area, 1)
         
         apply_btn = QPushButton("✨ 应用主题")
         apply_btn.setMinimumHeight(45)
@@ -909,12 +992,15 @@ class CoreFrameworkModule(BaseModule):
         card.setObjectName(f"themeCard_{theme_id}")
         card.setCursor(Qt.CursorShape.PointingHandCursor)
         
+        card.setMinimumWidth(140)
+        card.setMaximumWidth(180)
+        card.setMinimumHeight(160)
+        
         card_style = f"""
         #themeCard_{theme_id} {{
             background-color: {colors['secondary_bg']};
             border: 3px solid {'#1565C0' if is_selected else colors['border']};
             border-radius: 12px;
-            padding: 15px;
         }}
         #themeCard_{theme_id}:hover {{
             border-color: {colors['primary_color']};
@@ -923,37 +1009,43 @@ class CoreFrameworkModule(BaseModule):
         card.setStyleSheet(card_style)
         
         layout = QVBoxLayout(card)
-        layout.setContentsMargins(15, 15, 15, 15)
-        layout.setSpacing(10)
+        layout.setContentsMargins(12, 12, 12, 12)
+        layout.setSpacing(8)
         
         icon_label = QLabel(theme_info.get('icon', '🎨'))
-        icon_label.setFont(QFont("Microsoft YaHei", 32))
+        icon_label.setFont(QFont("Microsoft YaHei", 28))
         icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        icon_label.setMinimumHeight(40)
         layout.addWidget(icon_label)
         
-        name_label = QLabel(theme_info.get('name', theme_id))
-        name_label.setFont(QFont("Microsoft YaHei", 12, QFont.Weight.Bold))
+        theme_name = theme_info.get('name', theme_id)
+        name_label = QLabel(theme_name)
+        name_label.setFont(QFont("Microsoft YaHei", 11, QFont.Weight.Bold))
         name_label.setStyleSheet(f"color: {colors['text_primary']};")
         name_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        name_label.setWordWrap(True)
+        name_label.setMinimumHeight(30)
         layout.addWidget(name_label)
         
         preview_frame = QFrame()
         preview_frame.setStyleSheet(f"""
             QFrame {{
                 background-color: {colors['primary_color']};
-                border-radius: 6px;
+                border-radius: 4px;
                 border: none;
             }}
         """)
-        preview_frame.setMinimumHeight(30)
-        preview_frame.setMaximumHeight(30)
+        preview_frame.setMinimumHeight(25)
+        preview_frame.setMaximumHeight(25)
+        preview_frame.setMinimumWidth(100)
         layout.addWidget(preview_frame)
         
         radio_btn = QRadioButton("选择")
-        radio_btn.setFont(QFont("Microsoft YaHei", 10))
+        radio_btn.setFont(QFont("Microsoft YaHei", 9))
         radio_btn.setChecked(is_selected)
         radio_btn.setProperty("theme_id", theme_id)
         radio_btn.setStyleSheet(f"color: {colors['text_primary']};")
+        radio_btn.setMinimumHeight(25)
         self._theme_button_group.addButton(radio_btn)
         layout.addWidget(radio_btn, alignment=Qt.AlignmentFlag.AlignCenter)
         
@@ -966,9 +1058,26 @@ class CoreFrameworkModule(BaseModule):
         group = QGroupBox("👁️ 外观设置")
         group.setFont(QFont("Microsoft YaHei", 12, QFont.Weight.Bold))
         
+        group.setStyleSheet("""
+            QGroupBox {
+                font-weight: bold;
+                border: 2px solid #E0E0E0;
+                border-radius: 10px;
+                margin-top: 25px;
+                padding-top: 15px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 20px;
+                top: -15px;
+                padding: 5px 15px;
+                background-color: transparent;
+            }
+        """)
+        
         layout = QFormLayout(group)
-        layout.setContentsMargins(20, 25, 20, 20)
-        layout.setSpacing(15)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(20)
         layout.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
         
         appearance_settings = self._theme_manager.get_appearance_settings()
@@ -977,17 +1086,23 @@ class CoreFrameworkModule(BaseModule):
         font_size_label.setFont(QFont("Microsoft YaHei", 11))
         
         font_size_layout = QHBoxLayout()
+        font_size_layout.setSpacing(10)
         self._font_size_slider = QSlider(Qt.Orientation.Horizontal)
         self._font_size_slider.setMinimum(10)
         self._font_size_slider.setMaximum(18)
         self._font_size_slider.setValue(appearance_settings.get('font_size', 12))
         self._font_size_slider.setTickPosition(QSlider.TickPosition.TicksBelow)
         self._font_size_slider.setTickInterval(2)
-        self._font_size_slider.setMinimumWidth(200)
+        self._font_size_slider.setMinimumWidth(250)
         
         self._font_size_value = QLabel(str(appearance_settings.get('font_size', 12)))
         self._font_size_value.setFont(QFont("Microsoft YaHei", 11, QFont.Weight.Bold))
-        self._font_size_value.setMinimumWidth(30)
+        self._font_size_value.setMinimumWidth(40)
+        self._font_size_value.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        
+        px_label = QLabel("px")
+        px_label.setFont(QFont("Microsoft YaHei", 10))
+        px_label.setStyleSheet("color: #666666;")
         
         self._font_size_slider.valueChanged.connect(
             lambda v: self._font_size_value.setText(str(v))
@@ -995,6 +1110,7 @@ class CoreFrameworkModule(BaseModule):
         
         font_size_layout.addWidget(self._font_size_slider)
         font_size_layout.addWidget(self._font_size_value)
+        font_size_layout.addWidget(px_label)
         font_size_layout.addStretch()
         
         layout.addRow(font_size_label, font_size_layout)
@@ -1002,20 +1118,40 @@ class CoreFrameworkModule(BaseModule):
         compact_mode_label = QLabel("紧凑模式:")
         compact_mode_label.setFont(QFont("Microsoft YaHei", 11))
         
+        compact_layout = QHBoxLayout()
+        compact_layout.setSpacing(10)
         self._compact_mode_check = QCheckBox("使用更紧凑的布局")
         self._compact_mode_check.setFont(QFont("Microsoft YaHei", 10))
         self._compact_mode_check.setChecked(appearance_settings.get('compact_mode', False))
         
-        layout.addRow(compact_mode_label, self._compact_mode_check)
+        compact_desc = QLabel("(减少组件间距，适合小屏幕)")
+        compact_desc.setFont(QFont("Microsoft YaHei", 9))
+        compact_desc.setStyleSheet("color: #999999;")
+        
+        compact_layout.addWidget(self._compact_mode_check)
+        compact_layout.addWidget(compact_desc)
+        compact_layout.addStretch()
+        
+        layout.addRow(compact_mode_label, compact_layout)
         
         animations_label = QLabel("动画效果:")
         animations_label.setFont(QFont("Microsoft YaHei", 11))
         
+        animations_layout = QHBoxLayout()
+        animations_layout.setSpacing(10)
         self._animations_check = QCheckBox("启用UI动画效果")
         self._animations_check.setFont(QFont("Microsoft YaHei", 10))
         self._animations_check.setChecked(appearance_settings.get('animations_enabled', True))
         
-        layout.addRow(animations_label, self._animations_check)
+        animations_desc = QLabel("(提升视觉体验，可能影响性能)")
+        animations_desc.setFont(QFont("Microsoft YaHei", 9))
+        animations_desc.setStyleSheet("color: #999999;")
+        
+        animations_layout.addWidget(self._animations_check)
+        animations_layout.addWidget(animations_desc)
+        animations_layout.addStretch()
+        
+        layout.addRow(animations_label, animations_layout)
         
         return group
     
