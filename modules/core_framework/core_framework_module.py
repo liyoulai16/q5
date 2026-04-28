@@ -8,7 +8,8 @@
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
                              QPushButton, QFrame, QButtonGroup, QRadioButton,
                              QGroupBox, QFormLayout, QComboBox, QCheckBox,
-                             QSlider, QSpinBox, QColorDialog, QTabWidget)
+                             QSlider, QSpinBox, QColorDialog, QTabWidget,
+                             QScrollArea)
 from PyQt6.QtCore import Qt, pyqtSignal, QSettings
 from PyQt6.QtGui import QFont, QColor, QPalette
 
