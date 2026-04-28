@@ -39,7 +39,7 @@ class NotepadModule(BaseModule):
     
     @property
     def category(self) -> str:
-        return ModuleCategory.OFFICE_TOOLS
+        return ModuleCategory.DATA_MANAGEMENT
     
     @property
     def author(self) -> str:

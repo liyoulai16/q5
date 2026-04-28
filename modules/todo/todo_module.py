@@ -12,7 +12,7 @@ from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
 from PyQt6.QtCore import Qt, QDate, QDateTime
 from PyQt6.QtGui import QFont
 
-from modules.module_manager import BaseModule
+from modules.module_manager import BaseModule, ModuleCategory
 from database.database_manager import DatabaseManager
 
 
@@ -59,6 +59,10 @@ class TodoModule(BaseModule):
     @property
     def version(self) -> str:
         return "1.0.0"
+    
+    @property
+    def category(self) -> str:
+        return ModuleCategory.DATA_MANAGEMENT
     
     @property
     def author(self) -> str:

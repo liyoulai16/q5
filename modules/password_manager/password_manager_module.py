@@ -934,7 +934,7 @@ class PasswordManagerModule(BaseModule):
     
     @property
     def category(self) -> str:
-        return ModuleCategory.LIFE_TOOLS
+        return ModuleCategory.DATA_MANAGEMENT
     
     @property
     def author(self) -> str:
