@@ -446,11 +446,12 @@ class SpeedTestCard(QFrame):
     
     def __init__(self, title: str, value: str, unit: str, icon: str = "", color: str = "#1565C0", parent=None):
         super().__init__(parent)
-        self.title = title
-        self.value = value
-        self.unit = unit
-        self.icon = icon
-        self.color = color
+        self._title = title
+        self._value = value
+        self._unit = unit
+        self._icon = icon
+        self._color = color
+        self._value_label = None
         self._init_ui()
     
     def _init_ui(self):
@@ -459,7 +460,7 @@ class SpeedTestCard(QFrame):
         self.setStyleSheet(f"""
             QFrame {{
                 background-color: qlineargradient(x1:0, y1:0, x2:1, y2:1,
-                    stop:0 {self.color}, stop:1 {self._darken_color(self.color)});
+                    stop:0 {self._color}, stop:1 {self._darken_color(self._color)});
                 border-radius: 12px;
                 border: none;
             }}
@@ -472,12 +473,12 @@ class SpeedTestCard(QFrame):
         title_layout = QHBoxLayout()
         title_layout.setSpacing(8)
         
-        if self.icon:
-            icon_label = QLabel(self.icon)
+        if self._icon:
+            icon_label = QLabel(self._icon)
             icon_label.setFont(QFont("Microsoft YaHei", 16))
             title_layout.addWidget(icon_label)
         
-        title_label = QLabel(self.title)
+        title_label = QLabel(self._title)
         title_label.setFont(QFont("Microsoft YaHei", 11, QFont.Weight.Bold))
         title_label.setStyleSheet("color: rgba(255, 255, 255, 0.9);")
         title_layout.addWidget(title_label)
@@ -488,12 +489,12 @@ class SpeedTestCard(QFrame):
         value_layout = QHBoxLayout()
         value_layout.setSpacing(5)
         
-        value_label = QLabel(self.value)
-        value_label.setFont(QFont("Microsoft YaHei", 28, QFont.Weight.Bold))
-        value_label.setStyleSheet("color: white;")
-        value_layout.addWidget(value_label)
+        self._value_label = QLabel(self._value)
+        self._value_label.setFont(QFont("Microsoft YaHei", 28, QFont.Weight.Bold))
+        self._value_label.setStyleSheet("color: white;")
+        value_layout.addWidget(self._value_label)
         
-        unit_label = QLabel(self.unit)
+        unit_label = QLabel(self._unit)
         unit_label.setFont(QFont("Microsoft YaHei", 12))
         unit_label.setStyleSheet("color: rgba(255, 255, 255, 0.85);")
         unit_label.setAlignment(Qt.AlignmentFlag.AlignBottom)
@@ -518,8 +519,9 @@ class SpeedTestCard(QFrame):
     
     def update_value(self, value: str):
         """更新显示值"""
-        self.value = value
-        self._init_ui()
+        self._value = value
+        if self._value_label:
+            self._value_label.setText(value)
 
 
 class IPInfoCard(QFrame):
@@ -687,14 +689,15 @@ class NetworkToolsMainWidget(QWidget):
                 font-size: 13px;
                 border: 1px solid #e0e0e0;
                 border-radius: 8px;
-                margin-top: 10px;
-                padding-top: 10px;
+                margin-top: 18px;
+                padding-top: 15px;
                 background-color: white;
             }
             QGroupBox::title {
                 subcontrol-origin: margin;
                 left: 15px;
-                padding: 0 5px;
+                top: 8px;
+                padding: 0 8px;
                 color: #1565C0;
             }
         """)
@@ -793,14 +796,15 @@ class NetworkToolsMainWidget(QWidget):
                 font-size: 13px;
                 border: 1px solid #e0e0e0;
                 border-radius: 8px;
-                margin-top: 10px;
-                padding-top: 10px;
+                margin-top: 18px;
+                padding-top: 15px;
                 background-color: white;
             }
             QGroupBox::title {
                 subcontrol-origin: margin;
                 left: 15px;
-                padding: 0 5px;
+                top: 8px;
+                padding: 0 8px;
                 color: #1565C0;
             }
         """)
@@ -843,14 +847,15 @@ class NetworkToolsMainWidget(QWidget):
                 font-size: 13px;
                 border: 1px solid #e0e0e0;
                 border-radius: 8px;
-                margin-top: 10px;
-                padding-top: 10px;
+                margin-top: 18px;
+                padding-top: 15px;
                 background-color: white;
             }
             QGroupBox::title {
                 subcontrol-origin: margin;
                 left: 15px;
-                padding: 0 5px;
+                top: 8px;
+                padding: 0 8px;
                 color: #1565C0;
             }
         """)
@@ -898,14 +903,15 @@ class NetworkToolsMainWidget(QWidget):
                 font-size: 13px;
                 border: 1px solid #e0e0e0;
                 border-radius: 8px;
-                margin-top: 10px;
-                padding-top: 10px;
+                margin-top: 18px;
+                padding-top: 15px;
                 background-color: white;
             }
             QGroupBox::title {
                 subcontrol-origin: margin;
                 left: 15px;
-                padding: 0 5px;
+                top: 8px;
+                padding: 0 8px;
                 color: #1565C0;
             }
         """)
@@ -1161,8 +1167,10 @@ class NetworkToolsMainWidget(QWidget):
         
         self._current_ip_data = result
         
-        for i in reversed(range(self.ip_result_layout.count())):
-            self.ip_result_layout.itemAt(i).widget().setParent(None)
+        while self.ip_result_layout.count():
+            item = self.ip_result_layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
         
         ip_card = IPInfoCard(result)
         self.ip_result_layout.addWidget(ip_card)
@@ -1175,14 +1183,15 @@ class NetworkToolsMainWidget(QWidget):
                     font-size: 13px;
                     border: 1px solid #e0e0e0;
                     border-radius: 8px;
-                    margin-top: 10px;
-                    padding-top: 10px;
+                    margin-top: 15px;
+                    padding-top: 15px;
                     background-color: white;
                 }
                 QGroupBox::title {
                     subcontrol-origin: margin;
                     left: 15px;
-                    padding: 0 5px;
+                    top: 5px;
+                    padding: 0 8px;
                     color: #1565C0;
                 }
             """)
