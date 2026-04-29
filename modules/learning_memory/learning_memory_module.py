@@ -475,14 +475,14 @@ class LearningMemoryModule(BaseModule):
                 font-weight: bold;
                 border: 1px solid #ddd;
                 border-radius: 4px;
-                margin-top: 8px;
-                padding-top: 8px;
+                margin-top: 15px;
+                padding-top: 15px;
                 background-color: white;
             }
             QGroupBox::title {
                 subcontrol-origin: margin;
                 left: 8px;
-                padding: 0 3px;
+                padding: 5px 8px;
                 color: #333;
             }
         """)
@@ -664,14 +664,14 @@ class LearningMemoryModule(BaseModule):
                 font-weight: bold;
                 border: 1px solid #ddd;
                 border-radius: 4px;
-                margin-top: 8px;
-                padding-top: 8px;
+                margin-top: 15px;
+                padding-top: 15px;
                 background-color: white;
             }
             QGroupBox::title {
                 subcontrol-origin: margin;
                 left: 8px;
-                padding: 0 3px;
+                padding: 5px 8px;
                 color: #333;
             }
         """)
@@ -890,14 +890,14 @@ class LearningMemoryModule(BaseModule):
                 font-weight: bold;
                 border: 1px solid #ddd;
                 border-radius: 4px;
-                margin-top: 8px;
-                padding-top: 8px;
+                margin-top: 15px;
+                padding-top: 15px;
                 background-color: white;
             }
             QGroupBox::title {
                 subcontrol-origin: margin;
                 left: 8px;
-                padding: 0 3px;
+                padding: 5px 8px;
                 color: #333;
             }
         """)
@@ -1032,14 +1032,14 @@ class LearningMemoryModule(BaseModule):
                 font-weight: bold;
                 border: 1px solid #ddd;
                 border-radius: 4px;
-                margin-top: 8px;
-                padding-top: 8px;
+                margin-top: 15px;
+                padding-top: 15px;
                 background-color: white;
             }
             QGroupBox::title {
                 subcontrol-origin: margin;
                 left: 8px;
-                padding: 0 3px;
+                padding: 5px 8px;
                 color: #333;
             }
         """)
@@ -1110,14 +1110,14 @@ class LearningMemoryModule(BaseModule):
                 font-weight: bold;
                 border: 1px solid #ddd;
                 border-radius: 4px;
-                margin-top: 8px;
-                padding-top: 8px;
+                margin-top: 15px;
+                padding-top: 15px;
                 background-color: white;
             }
             QGroupBox::title {
                 subcontrol-origin: margin;
                 left: 8px;
-                padding: 0 3px;
+                padding: 5px 8px;
                 color: #333;
             }
         """)
@@ -1237,14 +1237,14 @@ class LearningMemoryModule(BaseModule):
                 font-weight: bold;
                 border: 1px solid #ddd;
                 border-radius: 4px;
-                margin-top: 8px;
-                padding-top: 8px;
+                margin-top: 15px;
+                padding-top: 15px;
                 background-color: white;
             }
             QGroupBox::title {
                 subcontrol-origin: margin;
                 left: 8px;
-                padding: 0 3px;
+                padding: 5px 8px;
                 color: #333;
             }
         """)
@@ -1972,14 +1972,20 @@ class LearningMemoryModule(BaseModule):
         for row, record in enumerate(records):
             self._records_table.insertRow(row)
             
-            # 日期
-            date_item = QTableWidgetItem(record['study_date'])
+            # 日期 - 确保转换为字符串
+            study_date = record['study_date']
+            if hasattr(study_date, 'strftime'):
+                study_date_str = study_date.strftime("%Y-%m-%d")
+            else:
+                study_date_str = str(study_date) if study_date else ""
+            
+            date_item = QTableWidgetItem(study_date_str)
             date_item.setData(Qt.ItemDataRole.UserRole, record['id'])
             self._records_table.setItem(row, 0, date_item)
             
             # 计划
             plan_title = record['plan_title'] if record['plan_title'] else "无计划"
-            plan_item = QTableWidgetItem(plan_title)
+            plan_item = QTableWidgetItem(str(plan_title))
             self._records_table.setItem(row, 1, plan_item)
             
             # 学习时长
@@ -1988,11 +1994,17 @@ class LearningMemoryModule(BaseModule):
             
             # 备注
             notes = record['notes'] if record['notes'] else ""
-            notes_item = QTableWidgetItem(notes)
+            notes_item = QTableWidgetItem(str(notes))
             self._records_table.setItem(row, 3, notes_item)
             
-            # 记录时间
-            time_item = QTableWidgetItem(record['created_at'])
+            # 记录时间 - 确保转换为字符串
+            created_at = record['created_at']
+            if hasattr(created_at, 'strftime'):
+                created_at_str = created_at.strftime("%Y-%m-%d %H:%M:%S")
+            else:
+                created_at_str = str(created_at) if created_at else ""
+            
+            time_item = QTableWidgetItem(created_at_str)
             self._records_table.setItem(row, 4, time_item)
     
     def _on_add_study_record(self):
